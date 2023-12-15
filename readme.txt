@@ -16,13 +16,13 @@ Other Features:
 + Quick calculation of a Bragg mirror
 + Intuitive field visualization
 + Parallel computation
-+ Userfriendly examples
++ User-friendly examples
 
 List of main functions: ("Sources" folder)
 ----------------------
-- SetGeom :         define geometric parameters
+- SetGeom  :        define geometric parameters
 - Spectrum :        compute the spectrum of reflectivity and transmittivity
-- CalculFieldFMM :  calculate the field distribution
+- Field    :        calculate the field distribution
 - VisuFieldFMM :    plot the distribution of the e.m. field 
 - VisuMesh :        plot the discretization of the structure
 
