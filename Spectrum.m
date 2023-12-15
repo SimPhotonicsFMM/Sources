@@ -33,12 +33,13 @@ function varargout = Spectrum(index,geom,lambda,theta,inc,varargin)
 %
 %   Additional parameters: 'param1',val1,... 
 %       mx  : Number of Fourier terms in x, by default mx=0
-%       my  : Number of Fourier terms in x, by default my=0
+%       my  : Number of Fourier terms in y, by default my=0
 %       Nper: Possible number of periods (Bragg miror), by default Nper=1
 %       Num : Diffracted order numbers, by default Num=[]
 %       Phi0 : Azimuthal angle (rd), by default Phi0=0
 %       SymY : Symmetry in y, =0 :TM (PMC), =1 : TE (PEC), by default =2
 %              (SymY=0 or 1: Only total R/T will be computed)
+%       Nsub : Number of subdivisions for FD_FMM calculation
 %
 %       dx  : Period in x, , by default dx=lambda(1)
 %       dy  : Period in y, , by default dy=lambda(1)
@@ -112,7 +113,7 @@ function varargout = Spectrum(index,geom,lambda,theta,inc,varargin)
 
 %
 % Initialiser la structure des paramètres
-global Index
+global Index SaveOption
 
 if iscell(index)
     for k=1:length(index) 
@@ -126,13 +127,15 @@ lambda = lambda + 10*eps;
 
 %
 s = struct('Nper',1,'mx',0,'my',0,'Phi0',0,'npx',2,'npy',2,'npz',2,'Num',[],...
-     'dx',lambda(1),'dy',lambda(1),'lix',[],'liy',[],'Sym',[2 2],'SymY',2);
+     'dx',lambda(1),'dy',lambda(1),'lix',[],'liy',[],'Sym',[2 2],'SymY',2,...
+     'Nsub',[]);
 %
 % Listes des paramètres
-if nargin == 6, s.Nper = varargin{1}; end
-if nargin > 6
-    f = varargin(1:2:end);
-    v = varargin(2:2:end);
+%if nargin == 6, s.Nper = varargin{1}; end
+if numel(varargin) == 1, varin = varargin{1}; else, varin = varargin; end
+if nargin >= 6
+    f = varin(1:2:end);
+    v = varin(2:2:end);
     FieldData = fieldnames(s);
     for k = 1:length(f)
         P = ismember(FieldData,f(k));
@@ -159,6 +162,9 @@ end
 %
 % Hauteurs des couches et largeurs des inclusions
 [dx,dy] = deal(Inf);
+if isstruct(geom) && isfield(geom,'Cn')
+    Mesh = geom;
+else
 if isstruct(geom)
 %     if isfield(geom,'npx')
 %         [s.npx,s.npy,s.npz] = deal(geom.npx,geom.npy,geom.npz);
@@ -190,8 +196,10 @@ else
     if Nb_hc>1 && isempty(s.lix), s.lix = cell(Nb_hc,1); end
     if Nb_hc>1 && isempty(s.liy), s.liy = cell(Nb_hc,1); end
     % Description de la géométrie
+    SaveOption = 0;
     Mesh = MeshLayer(s.dx,s.lix(end:-1:1),s.dy,s.liy(end:-1:1),hc(:)',...
                      s.npx(end:-1:1),s.npy(end:-1:1),s.npz(end:-1:1));
+end
 end
 %
 % Description des données
@@ -205,8 +213,30 @@ Data = SetData('Lambda0',lambda(1),'Theta0',theta(1),'Phi0',s.Phi0(1),...
 if Data(1).Sym(2) ~= 2 && Data(1).Phi0 ~= 0
     error('if Phi0 is not equal 0, there is no symmetry in y')
 end
+
+%
+if Data(1).Sym(2) ~= 2 && ~isempty(s.Num)
+    error('if Num is not empty, symmetry is not authorised ')
+end
+
 %
 if ~isempty(s.Num), NbOrder = length(s.Num); else, NbOrder = 1; end
+ 
+
+NumLayer = [];
+if isfield(s,'Nsub') && ~isempty(s.Nsub)
+    if numel(find(s.Nsub~=0))>1 || (numel(find(s.Nsub~=0))==1 && Nper>1) 
+        error('FD_FMM is only used for one layer'); 
+    end
+    for k=1:length(Data) 
+        Data(k).Nsub = s.Nsub(end-k+1); 
+        if Data(k).Nsub ~= 0, 
+            NumLayer = k;
+            if isfield(s,'POD'), Data(k).POD = s.POD; end
+        end
+    end 
+
+end
 
 % Calcul du spectre en fonction de Lambda et Theta
 [Xl,Xa] = ndgrid(lambda,theta);
@@ -230,8 +260,13 @@ if numel(lambda) == 1 && numel(theta) == 1
     Sh = CalculMatS(Data,Mesh,Phys,+1); % milieu haut
     MatS = CalculMatS(Data,Mesh,Phys); % Matrices S des différentes couches
     if Nper > 1, MatS0 = ProdMatS(MatS,Nper); else, MatS0 = MatS; end
-    [r,t,CoefD] = CalculCoefRT(Sb,MatS0,Sh);
     if isempty(Phys(1).PmlX) && isempty(Phys(1).PmlY)
+        if ~isempty(NumLayer)
+            [r,t,CoefD,R,T,E,H] = CalculCoefRT(Sb,MatS0,Sh,NumLayer);
+            MatS{NumLayer,6} = [E H]; 
+        else
+            [r,t,CoefD,R,T] = CalculCoefRT(Sb,MatS0,Sh);
+        end
         if sum(Data(1).Sym) ~= 4
             [R_tem,T_tem] = CoefRTA(r,t);
         else
@@ -244,6 +279,8 @@ if numel(lambda) == 1 && numel(theta) == 1
                 [R_tem,T_tem] = CoefRTA(r,t);
             end
         end
+    else
+        CoefD = [];
     end
 
 else
@@ -284,7 +321,8 @@ end
 if NbArgOut == 1
     if numel(lambda) == 1 && numel(theta) == 1
         Model = struct('Data',Data,'Mesh',Mesh,'Phys',Phys,...
-                        'R_tem',R_tem,'T_tem',T_tem,'CoefD',CoefD);
+                        'R_tem',R_tem,'T_tem',T_tem,'CoefD',CoefD,...
+                        'R',R,'T',T);
         Model.Sb = Sb; Model.Sh = Sh; Model.MatS = MatS;
         if Nper>1, Model.Nper = Nper; end
     else
