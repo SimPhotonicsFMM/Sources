@@ -36,13 +36,20 @@ if nargin < 4, N = 1; end
 Sb = CalculMatS(Data,Mesh,Phys,-1); % milieu bas
 Sh = CalculMatS(Data,Mesh,Phys,+1); % milieu haut
 %
+NumLayer = [];
+if isfield(Data,'Nsub'), Nsub = cell2mat({Data.Nsub}); NumLayer = find(Nsub~=0); end
+%
 if length(Mesh) == 1 && max(diff(Mesh.CoorN(:,end)))<2*eps
     [r,t,CoefD,R,T] = CalculCoefRT(Sb,Sh); % Cas d'un dioptre
 else
     MatS = CalculMatS(Data,Mesh,Phys); % Matrices S des différentes couches
     if N > 1, MatS = ProdMatS(MatS,N); end
     % Calcul de R et T
-    [r,t,CoefD,R,T] = CalculCoefRT(Sb,MatS,Sh);
+    if ~isempty(NumLayer)
+        [r,t,CoefD,R,T] = CalculCoefRT(Sb,MatS,Sh,NumLayer);
+    else
+        [r,t,CoefD,R,T] = CalculCoefRT(Sb,MatS,Sh);
+    end
 end
 
 %

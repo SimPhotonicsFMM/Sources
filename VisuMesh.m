@@ -1,7 +1,7 @@
 function VisuMesh(Mesh,NumSD,str,alpha)
 
-% VisuMesh 
-%   Plot 2D or 3D Mesh  
+% VisuMesh
+%   Plot 2D or 3D Mesh
 %
 % Syntax
 %   VisuMesh(Mesh)
@@ -11,14 +11,14 @@ function VisuMesh(Mesh,NumSD,str,alpha)
 %
 % Description
 %   Mesh : Mesh of the structure (CoorN, Cn, Nsd,...CoorA, Ca, ExtAr, )
-%   NumSD : Number of subdomais to be plotted, 
+%   NumSD : Number of subdomais to be plotted,
 %           if NumSD is a Matlab structure (Data ou Phys) we plot abs(Indice)
 %   str   : edge color or 'none'
 %   alpha : Transparency of colors for a 3D-mesh
-%   
+%
 %
 % Example
-%   h = [0.045 0.015 .05]; [dx,dy] = deal(.1,.1);      
+%   h = [0.045 0.015 .05]; [dx,dy] = deal(.1,.1);
 %   lix = {[] , 0.5*dx, 0};  liy = {[] , .75*dy, []};
 %   npx = {2 [2 2] 2}; npy = {2 2 2}; npz = {2 2 2};
 %   Mesh = MeshLayer(dx,lix,dy,liy,h,npx,npy,npz);
@@ -53,7 +53,7 @@ end
 function VisuMesh2D(Mesh0,NumSD0,str)
 
 %
-% VisuMesh2D 
+% VisuMesh2D
 %   Visualiser un Maillage 2D
 %
 % Syntaxe
@@ -73,7 +73,7 @@ function VisuMesh2D(Mesh0,NumSD0,str)
 %   VisuMesh2D(Mesh)
 %   VisuMesh2D(Mesh,[],'none')
 
-% Date de la dernière version : 15 décembre 2017 
+% Date de la dernière version : 15 décembre 2017
 % Auteur : Mondher Besbes (LCF / CNRS)
 
 %figure
@@ -83,7 +83,7 @@ if nargin < 3 , str = 'k'; end
 for kc = 1:length(Mesh0)
     Mesh = Mesh0(kc);
 
-if nargin < 2 
+if nargin < 2
     [NumSD,C] = deal(1:max(Mesh.Nsd));
 else
     if isempty(NumSD0)
@@ -115,10 +115,10 @@ for kd = 1:length(NumSD)
     axis equal,
     axis on, axis tight
     xlabel('x'), ylabel('y'),
-    colorbar 
+    colorbar
 end
 
-% if length(Mesh0)>1, 
+% if length(Mesh0)>1,
 %     plot([min(Mesh.CoorN(:,1)) max(Mesh.CoorN(:,1))],...
 %         [max(Mesh.CoorN(:,2)) max(Mesh.CoorN(:,2))],'--r','LineWidth',4)
 % end
@@ -142,14 +142,14 @@ if iscell(NumSD0)
         NumSD0 = SetData('Indice',NumSD0(end-1:-1:2));
     end
 end
-                    
+
 NumMax = 0;
 
 hold on
 for kc = 1:length(Mesh0)
     Mesh = Mesh0(kc);
-    if nargin < 2 || isempty(NumSD0), 
-        [NumSD,C] = deal(1:max(Mesh.Nsd)); 
+    if nargin < 2 || isempty(NumSD0),
+        [NumSD,C] = deal(1:max(Mesh.Nsd));
     else
             if isstruct(NumSD0)
                 Data = NumSD0(kc);
@@ -161,16 +161,21 @@ for kc = 1:length(Mesh0)
             end
     end
     if kc>=2 && isfield(Mesh,'dh'), Mesh = MoveMesh(utilMesh(Mesh),[0 0 Mesh.dh]); end
-    
-    TabPf = 1:length(Mesh.CoorF);
+
+    TabPf = 1:size(Mesh.ExtFa,1);
 
     for ki = 1:length(NumSD),
         k = NumSD(ki);
 
         Pe = Mesh.Nsd == k;
-        if isfield(Mesh,'Pe') & ~isempty(Mesh.Pe), Pe = Pe & eval(char(Mesh.Pe)); end
+        if isfield(Mesh,'Pe') && ~isempty(Mesh.Pe), Pe = Pe & eval(char(Mesh.Pe)); end
         Pf = unique(Mesh.Cf(Pe,:));
-%        if isfield(Mesh,'TabNsdF'), Pf = find(ismember(TabPf(:),Pf) & Mesh.TabNsdF{k} == k); end
+        if isfield(Mesh,'CoorA')
+            if isfield(Mesh,'TabNsdF'), Pf = find(ismember(TabPf(:),Pf) & Mesh.TabNsdF{k} == k); end
+        else
+            Pf = find(ismember(TabPf(:),Pf) & Mesh.TabP == 1);
+        end
+%        
         if alpha < 1, Pf = find(Mesh.TabNsdF{k} == k); end %Pf = find(Mesh.TabP == 1); end
 
 %        Label{k} = num2str(C(ki));
@@ -182,7 +187,7 @@ for kc = 1:length(Mesh0)
 
         fv = patch(X',Y',Z',C(ki));
         set(fv,'FaceAlpha',alpha,'EdgeColor',str)
-        axis equal, 
+        axis equal,
         axis on, view(3), axis tight
         xlabel('x'), ylabel('y'), ylabel('y')
         drawnow
@@ -190,16 +195,18 @@ for kc = 1:length(Mesh0)
 
     end
 %
+if ~(isfield(Mesh,'Pe') && ~isempty(Mesh.Pe)), 
 if isfield(Mesh,'xv') && ~isempty(Mesh.xv)
     for k = 1:size(Mesh.xv,1)
-    plot3(Mesh.xv(k,:),Mesh.yv(k,:),max(Mesh.CoorN(:,3))*ones(size(Mesh.xv(k,:))),'k','LineWidth',1); 
+    plot3(Mesh.xv(k,:),Mesh.yv(k,:),max(Mesh.CoorN(:,3))*ones(size(Mesh.xv(k,:))),'k','LineWidth',1);
     plot3(Mesh.xv(k,:),Mesh.yv(k,:),min(Mesh.CoorN(:,3))*ones(size(Mesh.xv(k,:))),'k','LineWidth',1);
     end
+end
 end
 
 NumMax = ceil(max([NumMax Label{kc}]));
 %colorbar('Ticks',NumSD,'TickLabels',Label)
-box on, 
+box on,
 set(gca,'BoxStyle','full','LineWidth',2);
 
 [xm,xM,ym,yM] = MinMax(util(Mesh.CoorN(:,1:2)));

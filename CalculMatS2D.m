@@ -196,7 +196,7 @@ else
         MatS{1} = [Q*diag(1./cosh(Vp*hc))*InvQ , Q*diag(tanh(Vp*hc))*InvP;
                   -P*diag(tanh(Vp*hc))*InvQ    , P*diag(1./cosh(Vp*hc))*InvP];
         MatS{2} = zeros(length(P)*2,1);
-        [MatS{3},MatS{4},MatS{5},MatS{6},MatS{7}] = deal(P,Q,V,Vp,TpzMatQy);
+        [MatS{3},MatS{4},MatS{5},MatS{6},MatS{7}] = deal(P,Q,V,Vp,TpzMatQy(:));
     else                % HYB
         if nargin == 4
             tic, [K,M,Pe0] = InitCalculMat(Data,Mesh,Dof); toc

@@ -81,7 +81,7 @@ if sum(Data(1).Sym) ~= 4
     error('For Field Calculation, symmetry is not considered');
 end
 %
-[E,H] = deal(nan(length(x(:)),3));
+[E,H] = deal(nan(length(x(:)),6));
 
 a0 = max(Mesh(1).CoorN(:,1))-min(Mesh(1).CoorN(:,1));
 b0 = max(Mesh(1).CoorN(:,2))-min(Mesh(1).CoorN(:,2));
@@ -93,10 +93,10 @@ if min(z(:))<min(Mesh(1).CoorN(:,end))
     %
     if size(Mesh(1).CoorN,2) == 3
         Mesh0 = MeshLayer(a0,[],b0,[],h0,2,2,2);
-        Mesh0 = MoveMesh(utilMesh(Mesh0),[0 0 min(z(:))+min(Mesh(1).CoorN(:,end))]);
+        Mesh0 = MoveMesh(utilMesh2(Mesh0),[0 0 min(z(:))+min(Mesh(1).CoorN(:,end))]);
     elseif size(Mesh(1).CoorN,2) == 2
         Mesh0 = MeshLayer(a0,[],h0,2,2);
-        Mesh0 = MoveMesh(utilMesh(Mesh0),[0 min(z(:))+min(Mesh(1).CoorN(:,end))]);
+        Mesh0 = MoveMesh(utilMesh2(Mesh0),[0 min(z(:))+min(Mesh(1).CoorN(:,end))]);
     end
     %
     Data0 = SetData(Data(1),'Indice',Data(1).nb);
@@ -116,10 +116,10 @@ if max(z(:))>max(Mesh(end).CoorN(:,end))
     %
     if size(Mesh(1).CoorN,2) == 3
         Mesh0 = MeshLayer(a0,[],b0,[],h0,2,2,2);
-        Mesh0 = MoveMesh(utilMesh(Mesh0),[0 0 max(Mesh(end).CoorN(:,end))]);
+        Mesh0 = MoveMesh(utilMesh2(Mesh0),[0 0 max(Mesh(end).CoorN(:,end))]);
     elseif size(Mesh(1).CoorN,2) == 2
         Mesh0 = MeshLayer(a0,[],h0,2,2);
-        Mesh0 = MoveMesh(utilMesh(Mesh0),[0 max(Mesh(end).CoorN(:,end))]);
+        Mesh0 = MoveMesh(utilMesh2(Mesh0),[0 max(Mesh(end).CoorN(:,end))]);
     end
     %
     Data0 = SetData(Data(1),'Indice',Data(1).nh);
@@ -157,8 +157,8 @@ for k = 1:length(Mesh)
         % Calcul du champ par cellule
         [VectE,VectH] = FieldFMM(Data(k),Mesh(k),Phys(k),Sb1,MatS(k,:),Sh1,[x0(:) y0(:) z0(:)]);
         % 
-        E(Pn,1:3) = VectE{1}(1:length(Pn),:);
-        H(Pn,1:3) = VectH{1}(1:length(Pn),:);
+        E(Pn,1:end) = VectE{1}(1:length(Pn),:);
+        H(Pn,1:end) = VectH{1}(1:length(Pn),:);
     end
 end
 %toc
@@ -486,39 +486,26 @@ BetaY = BetaY0 + 2*pi/Dy*(my-my0);
 
 % Intensité incidente
 m = size(Sb{3},1); 
-[Ib,Ih] = deal(zeros(2*m,1)); % % dim 2 A vérifier
+[Ib,Ih] = deal(zeros(2*m,2)); % % dim 2 A vérifier
 
 mx = m/2;
 
 if Data.ChampInc == +1
-    if Phys(1).TypePol == 2
-        if ~isempty(Phys.PmlX) || ~isempty(Phys.PmlY), 
+        if ~isempty(Phys.PmlX) || ~isempty(Phys.PmlY) 
             Ih(Sh{7}(1),1) = 1;
+            Ih(Sh{7}(2),2) = 1;
         else
             Ih((mx-1)/2+1+3*mx,1) = 1; %Pui = [(length(mx)-1)/2+1+length(mx)+n (length(mx)-1)/2+1+n];
+            Ih((mx-1)/2+1+2*mx,2) = 1;
         end
-        
-    else
-        if ~isempty(Phys.PmlX) || ~isempty(Phys.PmlY), 
-            Ih(Sh{7}(2),1) = 1; 
-        else
-            Ih((mx-1)/2+1+2*mx,1) = 1;
-        end
-    end
 else
-    if Phys(1).TypePol == 2
         if ~isempty(Phys.PmlX) || ~isempty(Phys.PmlY), 
             Ib(Sb{7}(1),1) = 1; 
+            Ib(Sb{7}(2),1) = 1;
         else
             Ib((mx-1)/2+1+mx,1) = 1; %Pdi = [(length(mx)-1)/2+1+length(mx) (length(mx)-1)/2+1];
+            Ib((mx-1)/2+1,2) = 1;
         end
-    else
-        if ~isempty(Phys.PmlX) || ~isempty(Phys.PmlY), 
-            Ib(Sb{7}(2),1) = 1; 
-        else
-            Ib((mx-1)/2+1,1) = 1;
-        end
-    end
 end
 %
 [Pdi,Pd,Pui,Pu] = deal(Sb{7},Sb{8},Sh{7},Sh{8});
@@ -533,10 +520,10 @@ Sb1 = Sb{1};
 [Sb11,Sb12,Sb21,Sb22] = deal(Sb1(1:nb3,1:nb1),Sb1(1:nb3,nb1+1:end),...
                              Sb1(nb3+1:end,1:nb1),Sb1(nb3+1:end,nb1+1:end));
                          
-SIh = Sh22*Ih(Pui);  % A vérifier
-if size(SIh,2) == 0, SIh = zeros(size(SIh,1),1); end
-SIb = Sb11*Ib(Pdi);
-if size(SIb,2) == 0, SIb = zeros(size(SIb,1),1); end
+SIh = Sh22*Ih(Pui,:);  % A vérifier
+if size(SIh,2) == 0, SIh = zeros(size(SIh,1),2); end
+SIb = Sb11*Ib(Pdi,:);
+if size(SIb,2) == 0, SIb = zeros(size(SIb,1),2); end
 
 EHb = full([-Sh21 eye(m) ; eye(m) -Sb12])\full([SIh ; SIb]);
 %
@@ -544,12 +531,12 @@ EHb = full([-Sh21 eye(m) ; eye(m) -Sb12])\full([SIh ; SIb]);
 %
 
 %
-[Ex,Ey,Ez] = deal(zeros(1,length(x)));
-[Hx,Hy,Hz] = deal(zeros(1,length(x)));
+[Ex,Ey,Ez] = deal(zeros(length(x),2));
+[Hx,Hy,Hz] = deal(zeros(length(x),2));
 
 %
 
-[Em,Hm] = deal(EHb(1:m),EHb(1+m:end));
+[Em,Hm] = deal(EHb(1:m,:),EHb(1+m:end,:));
 P = MatS{3};
 Q = MatS{4};
 InvP = inv(P);
@@ -575,40 +562,51 @@ end
 [MatSb1,MatSh1] = deal(MatS);
 
 % Apodisation avec Hamming
-if abs(max(BetaX(:))-min(BetaX(:)))<1e-12 && abs(max(BetaY(:))-min(BetaY(:)))<1e-12
-    TfApod = ones(size(BetaX(:)));
-elseif abs(max(BetaX(:))-min(BetaX(:)))<1e-12
-    TfApod = (0.54-0.46*cos((BetaY(:)+min(BetaY(:)))*2*pi/(max(BetaY(:))-min(BetaY(:)))));
-elseif abs(max(BetaY(:))-min(BetaY(:)))<1e-12
-    TfApod = (0.54-0.46*cos((BetaX(:)+min(BetaX(:)))*2*pi/(max(BetaX(:))-min(BetaX(:)))));
-else
-    TfApod = (0.54-0.46*cos((BetaX(:)+min(BetaX(:)))*2*pi/(max(BetaX(:))-min(BetaX(:))))).*...
-    (0.54-0.46*cos((BetaY(:)+min(BetaY(:)))*2*pi/(max(BetaY(:))-min(BetaY(:)))));
-end
+
+Eps = 0.25;
+TfApod = Apod(BetaX,BetaY,Eps);
+%TfApod = ones(size(BetaX(:)));
 %
 MatQP = [Q , Q; P -P];
 InvMatQP = 0.5*[InvQ , InvP; InvQ -InvP];
 C = InvMatQP*EHb;
 %
-CondM = rcond(full(InvMatQP));
-[MatPzBetaX,MatPzBetaY] = deal(InvEpz*diag(BetaX),InvEpz*diag(BetaY));
-[MatQzBetaX,MatQzBetaY] = deal(InvMuz*diag(BetaX),InvMuz*diag(BetaY));
+if issparse(InvMatQP), CondM = 1/condest(InvMatQP); else, CondM = rcond(InvMatQP); end
+
+MatBetaX = repmat(reshape(BetaX(:),1,length(BetaX(:))),length(BetaX(:)),1);
+MatBetaY = repmat(reshape(BetaY(:),1,length(BetaY(:))),length(BetaY(:)),1);
+[MatPzBetaX,MatPzBetaY] = deal(InvEpz.*MatBetaX,InvEpz.*MatBetaY);
+[MatQzBetaX,MatQzBetaY] = deal(InvMuz.*MatBetaX,InvMuz.*MatBetaY);
+
+if isreal(MatPzBetaX), MatPzBetaX = complex(MatPzBetaX); end
+if isreal(MatPzBetaY), MatPzBetaY = complex(MatPzBetaY); end
+if isreal(MatQzBetaX), MatQzBetaX = complex(MatQzBetaX); end
+if isreal(MatQzBetaY), MatQzBetaY = complex(MatQzBetaY); end
+
+%[MatPzBetaX,MatPzBetaY] = deal(InvEpz*diag(BetaX),InvEpz*diag(BetaY));
+%[MatQzBetaX,MatQzBetaY] = deal(InvMuz*diag(BetaX),InvMuz*diag(BetaY));
+
+Phase = [];
 
 while ~isempty(z)
     Pn = abs(z0 - min(z)) <= max(abs(Mesh.CoorN(:)))/1e6;
     %Phase = exp(1i*Mesh.CoorN(Pn,1)*BetaX + 1i*Mesh.CoorN(Pn,2)*BetaY);
-    Phase = exp(1i*x(Pn)*BetaX + 1i*y(Pn)*BetaY);
+    if isempty(Phase) || (norm(x(Pn)-x0)>eps && norm(y(Pn)-y0)>eps)
+        Phase = exp(1i*x(Pn)*BetaX + 1i*y(Pn)*BetaY);
+    end
     %
-    Ex(Pn) = Phase*(TfApod.*Em(1:end/2));
-    Ey(Pn) = Phase*(TfApod.*Em(end/2+1:end));
-    Hx(Pn) = Phase*(TfApod.*Hm(1:end/2));
-    Hy(Pn) = Phase*(TfApod.*Hm(end/2+1:end));
+    Ex(Pn,:) = Phase*(TfApod.*Em(1:end/2,:));
+    Ey(Pn,:) = Phase*(TfApod.*Em(end/2+1:end,:));
+    Hx(Pn,:) = Phase*(TfApod.*Hm(1:end/2,:));
+    Hy(Pn,:) = Phase*(TfApod.*Hm(end/2+1:end,:));
     %Ezm = 1i*InvEpz*(diag(BetaX)*Hm(end/2+1:end) - diag(BetaY)*Hm(1:end/2));
-    Ezm = 1i*(MatPzBetaX*Hm(end/2+1:end) - MatPzBetaY*Hm(1:end/2));
-    Ez(Pn) = Phase*(TfApod.*Ezm);
+    Ezm = 1i*(MatPzBetaX*Hm(end/2+1:end,:) - MatPzBetaY*Hm(1:end/2,:));
+    Ez(Pn,:) = Phase*(TfApod.*Ezm);
     %Hzm = 1i*InvMuz*(diag(BetaX)*Em(end/2+1:end) - diag(BetaY)*Em(1:end/2));
-    Hzm = 1i*(MatQzBetaX*Em(end/2+1:end) - MatQzBetaY*Em(1:end/2));
-    Hz(Pn) = Phase*(TfApod.*Hzm);
+    Hzm = 1i*(MatQzBetaX*Em(end/2+1:end,:) - MatQzBetaY*Em(1:end/2,:));
+    Hz(Pn,:) = Phase*(TfApod.*Hzm);
+    %
+    x0 = x(Pn); y0 = y(Pn);
     %
     Pn = z > min(z);
     if isempty(z(Pn)), break; end
@@ -636,10 +634,10 @@ while ~isempty(z)
         Sb1 = MatSb1{1};
         [Sb11,Sb12] = deal(Sb1(1:nb3,1:nb1),Sb1(1:nb3,nb1+1:end));
     
-        SIh = Sh22*Ih(Pui);
-        if size(SIh,2) == 0, SIh = zeros(size(SIh,1),1); end
-        SIb = Sb11*Ib(Pdi);
-        if size(SIb,2) == 0, SIb = zeros(size(SIb,1),1); end
+        SIh = Sh22*Ih(Pui,:);
+        if size(SIh,2) == 0, SIh = zeros(size(SIh,1),2); end
+        SIb = Sb11*Ib(Pdi,:);
+        if size(SIb,2) == 0, SIb = zeros(size(SIb,1),2); end
     
         EHm = full([-Sh21 eye(m) ; eye(m) -Sb12])\full([SIh ; SIb]);
         C = InvMatQP*EHm;
@@ -650,7 +648,7 @@ while ~isempty(z)
         %ExpVp = exp([Vp ;-Vp]*hy);
         EHm = MatQP*(ExpVp.*C);
     end
-    [Em,Hm] = deal(EHm(1:m),EHm(1+m:end));
+    [Em,Hm] = deal(EHm(1:m,:),EHm(1+m:end,:));
     %
     z = z(Pn);
 end
@@ -659,10 +657,33 @@ end
 %norm(EHm-EHh)
 
 % attention au clonage
-VectE = [Ex(:) Ey(:) Ez(:)]*sqrt(Phys.Z0);
-VectH = [Hx(:) Hy(:) Hz(:)]/(1i*sqrt(Phys.Z0));
+VectE = [Ex(:,1) Ey(:,1) Ez(:,1) Ex(:,2) Ey(:,2) Ez(:,2)]*sqrt(Phys.Z0);
+VectH = [Hx(:,1) Hy(:,1) Hz(:,1) Hx(:,2) Hy(:,2) Hz(:,2)]/(1i*sqrt(Phys.Z0));
 Vect = [VectE VectH];
 
 end
 
+%%
+function TfApod = Apod(BetaX,BetaY,Eps)
 
+%Eps = 0.25;
+
+TfApodX = ones(size(BetaX(:)));
+alphaX = BetaX*2*pi/(max(BetaX(:))-min(BetaX(:)));
+
+Px = find(alphaX>(1-Eps)*max(alphaX(:)));
+TfApodX(Px) = (0.5-0.5*cos(alphaX(Px)/Eps));
+Px = find(alphaX<-(1-Eps)*max(alphaX(:)));
+TfApodX(Px) = (0.5-0.5*cos(alphaX(Px)/Eps));
+%
+TfApodY = ones(size(BetaY(:)));
+alphaY = BetaY'*2*pi/(max(BetaY(:))-min(BetaY(:)));
+
+Py = find(alphaY>(1-Eps)*max(alphaY(:)));
+TfApodY(Py) = (0.5-0.5*cos(alphaY(Py)/Eps));
+Py = find(alphaY<-(1-Eps)*max(alphaY(:)));
+TfApodY(Py) = (0.5-0.5*cos(alphaY(Py)/Eps));
+
+TfApod = TfApodX.*TfApodY;
+
+end

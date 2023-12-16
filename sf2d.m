@@ -44,7 +44,7 @@ if isstruct(varargin{1,1})
     Geom = varargin{1,1};
     n0 = Geom.mn;
     if isfield(Geom,'ab'), a0 = Geom.ab; else, a0 = [Geom.lix Geom.liy]/2; end
-    if isfield(Geom,'Np'), Np = Geom.Np; else, Np = 401; end
+    if isfield(Geom,'Np'), Np = Geom.Np; else, Np = 181; end
     if isfield(Geom,'Dep'), Dep0 = Geom.Dep; else, Dep0 = zeros(size(a0)); end
     if isfield(Geom,'Angle'), angle0 = Geom.Angle; else, angle0 = zeros(size(n0,1),1); end
     

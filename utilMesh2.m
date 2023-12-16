@@ -1,6 +1,6 @@
-classdef utilMesh
+classdef utilMesh2
 
-% utilMesh
+% utilMesh2
 %   class of methods to modify a mesh
 %
 % Properties
@@ -32,7 +32,7 @@ classdef utilMesh
         mesh = struct();
     end
     methods
-        function obj = utilMesh(val)
+        function obj = utilMesh2(val)
             if nargin == 1
                 obj.mesh = val;
             end
@@ -44,29 +44,11 @@ classdef utilMesh
             Mesh2 = [obj2.mesh];
             %
             N = size(Mesh1.CoorN,1);
-            A = size(Mesh1.CoorA,1);
-            F = size(Mesh1.CoorF,1);
             %
             Mesh.Cn = [Mesh1.Cn; Mesh2.Cn+N];
-            Mesh.Ca = [Mesh1.Ca; abs(Mesh2.Ca)+A];
-            Mesh.Cf = [Mesh1.Cf; Mesh2.Cf+F];
             Mesh.CoorN = [Mesh1.CoorN; Mesh2.CoorN];
-            Mesh.CoorA = [Mesh1.CoorA; Mesh2.CoorA];
-            Mesh.CoorF = [Mesh1.CoorF; Mesh2.CoorF];
             Mesh.CoorV = [Mesh1.CoorV; Mesh2.CoorV];
             Mesh.Nsd = [Mesh1.Nsd; Mesh2.Nsd];
-            Mesh.ExtAr = [Mesh1.ExtAr; Mesh2.ExtAr+N];
-            Mesh.ExtFa = [Mesh1.ExtFa; Mesh2.ExtFa+N];
-            Mesh.ExtFaAr = [Mesh1.ExtFaAr; abs(Mesh2.ExtFaAr)+A];
-            Mesh.NsdF = [Mesh1.NsdF; Mesh2.NsdF];
-            Mesh.TabP = [Mesh1.TabP; Mesh2.TabP];
-            Mesh.Vol = [Mesh1.Vol; Mesh2.Vol];
-            Mesh.TypeElmt = Mesh1.TypeElmt;
-            %
-            if isfield(Mesh1,'xv') && ~isempty(Mesh1.xv)
-                Mesh.xv = Mesh1.xv;
-                Mesh.yv = Mesh1.yv;
-            end
         end
         %
         % Extract a part of mesh
@@ -79,46 +61,18 @@ classdef utilMesh
             %if size(Mesh.CoorN,2) == 2, Mesh1.Surf = Mesh.Surf(Pe); end
             %
             Pn = unique(Mesh.Cn(Pe,:));
-            Pa = unique(abs(Mesh.Ca(Pe,:)));
             %
             Cn = Mesh.Cn(Pe,:);
-            Ca = Mesh.Ca(Pe,:);
             %
             Mesh1.CoorN =  Mesh.CoorN(Pn,:);
             P1 = zeros(1,size(Mesh.CoorN,1));
             for k = 1:length(Pn), P1(Pn(k)) = k; end  % compresser la numérotation des noeuds
             Mesh1.Cn = P1(Cn);
-            ExtAr = Mesh.ExtAr(Pa,:);
-            Mesh1.ExtAr = P1(ExtAr);
             
             %
-            if size(Mesh.CoorN,2) == 3 
-                Pf = unique(Mesh.Cf(Pe,:));
-                Cf = Mesh.Cf(Pe,:);
-                ExtFa = Mesh.ExtFa(Pf,:);
-                Mesh1.ExtFa = P1(ExtFa);
-            end
-            %
-            Mesh1.CoorA =  Mesh.CoorA(Pa,:);
-            P1 = int32(zeros(1,size(Mesh.CoorA,1)));
-            for k = 1:length(Pa), P1(Pa(k)) = k; end  % compresser la numérotation des arêtes
-            Mesh1.Ca = P1(abs(Ca)).*sign(Ca);
             
             if size(Mesh.CoorN,2) == 3
-                ExtFaAr = Mesh.ExtFaAr(Pf,:);
-                Mesh1.ExtFaAr = P1(abs(ExtFaAr)).*sign(ExtFaAr);
-                %
-                Mesh1.CoorF =  Mesh.CoorF(Pf,:);
-                P1 = zeros(1,size(Mesh.CoorF,1));
-                for k = 1:length(Pf), P1(Pf(k)) = k; end  % compresser la numérotation des arêtes
-                Mesh1.Cf = P1(Cf);
-                %
                 Mesh1.CoorV=  Mesh.CoorV(Pe,:);
-                Mesh1.NsdF = Mesh.NsdF(Pf);
-                Mesh1.Vol = Mesh.Vol(Pe);
-                %Mesh1.Surf = Mesh.Surf(Pf);
-                Mesh1.TabP = Mesh.TabP(Pf);
-                %Mesh1.VectNorm = Mesh.VectNorm(Pf,:);
             end
             %
                 
@@ -146,14 +100,6 @@ classdef utilMesh
                 % Nodes
                 TabDep = repmat(Dep,size(Mesh1(kc).CoorN,1),1);
                 Mesh2(kc).CoorN = Mesh1(kc).CoorN + TabDep;
-                % Edges
-                TabDep = repmat(Dep,size(Mesh1(kc).CoorA,1),1);
-                Mesh2(kc).CoorA = Mesh1(kc).CoorA + TabDep;
-                % Facets
-                if isfield(Mesh1(kc),'CoorF')
-                    TabDep = repmat(Dep,size(Mesh1(kc).CoorF,1),1);
-                    Mesh2(kc).CoorF = Mesh1(kc).CoorF + TabDep;
-                end
                 %
                 % Volumes
                 if isfield(Mesh1(kc),'CoorV')
@@ -173,27 +119,27 @@ classdef utilMesh
             for k = 1:length(Mesh0)
                 if max(Mesh0(k).Nsd) > 1
                     Pe = find(Mesh0(k).CoorV(:,1)>0 & Mesh0(k).CoorV(:,2)>0);
-                    Mesh1 = ExtractMesh(utilMesh(Mesh0(k)),Pe);
-                    Mesh1 = MoveMesh(utilMesh(Mesh1),[-xmax -ymax 0]);
+                    Mesh1 = ExtractMesh(utilMesh2(Mesh0(k)),Pe);
+                    Mesh1 = MoveMesh(utilMesh2(Mesh1),[-xmax -ymax 0]);
                     %
                     Pe = find(Mesh0(k).CoorV(:,1)>0 & Mesh0(k).CoorV(:,2)<0);
-                    Mesh2 = ExtractMesh(utilMesh(Mesh0(k)),Pe);
-                    Mesh2 = MoveMesh(utilMesh(Mesh2),[-xmax -ymin 0]);
+                    Mesh2 = ExtractMesh(utilMesh2(Mesh0(k)),Pe);
+                    Mesh2 = MoveMesh(utilMesh2(Mesh2),[-xmax -ymin 0]);
                     %
                     Pe = find(Mesh0(k).CoorV(:,1)<0 & Mesh0(k).CoorV(:,2)<0);
-                    Mesh3 = ExtractMesh(utilMesh(Mesh0(k)),Pe);
-                    Mesh3 = MoveMesh(utilMesh(Mesh3),[-xmin -ymin 0]);
+                    Mesh3 = ExtractMesh(utilMesh2(Mesh0(k)),Pe);
+                    Mesh3 = MoveMesh(utilMesh2(Mesh3),[-xmin -ymin 0]);
                     %
                     Pe = find(Mesh0(k).CoorV(:,1)<0 & Mesh0(k).CoorV(:,2)>0);
-                    Mesh4 = ExtractMesh(utilMesh(Mesh0(k)),Pe);
-                    Mesh4 = MoveMesh(utilMesh(Mesh4),[-xmin -ymax 0]);
+                    Mesh4 = ExtractMesh(utilMesh2(Mesh0(k)),Pe);
+                    Mesh4 = MoveMesh(utilMesh2(Mesh4),[-xmin -ymax 0]);
                     %
                     if length(Mesh0) == 1
-                        Mesh = AssembMesh(utilMesh(AssembMesh(utilMesh(Mesh1),utilMesh(Mesh2))),...
-                                   utilMesh(AssembMesh(utilMesh(Mesh3),utilMesh(Mesh4))));
+                        Mesh = AssembMesh(utilMesh2(AssembMesh(utilMesh2(Mesh1),utilMesh2(Mesh2))),...
+                                   utilMesh2(AssembMesh(utilMesh2(Mesh3),utilMesh2(Mesh4))));
                     else
-                        Mesh(k) = AssembMesh(utilMesh(AssembMesh(utilMesh(Mesh1),utilMesh(Mesh2))),...
-                                   utilMesh(AssembMesh(utilMesh(Mesh3),utilMesh(Mesh4))));
+                        Mesh(k) = AssembMesh(utilMesh2(AssembMesh(utilMesh2(Mesh1),utilMesh2(Mesh2))),...
+                                   utilMesh2(AssembMesh(utilMesh2(Mesh3),utilMesh2(Mesh4))));
                     end
                 end
             end
