@@ -4,7 +4,7 @@ global SaveOption
 
 % MeshLayer 
 %   Generate a 2D mesh in quadrangles or 3D in parallelelipeds
-%       SaveOption = 1 all fields of the structure "Mesh" otherwise = 0
+%      SaveOption = 1 all fields of the structure "Mesh" otherwise = 0
 %
 % Syntax
 %   Mesh = MeshLayer(Geom);                   
