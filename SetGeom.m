@@ -98,6 +98,9 @@ for k = 1:length(f)
     end
 end
 %
+if nargin == 0, return; end
+% 0D grating
+if ~isfield(Geom,'dx') && ~isfield(Geom,'dy'), [Geom.dx,Geom.dy] = deal(max(Geom.hc)); end
 % 1D grating
 if isfield(Geom,'dx') && ~isfield(Geom,'dy'), Geom.dy = Geom.dx; end
 %
