@@ -1,7 +1,10 @@
 function Mesh = MeshLayer(varargin)
 
+global SaveOption
+
 % MeshLayer 
 %   Generate a 2D mesh in quadrangles or 3D in parallelelipeds
+%       SaveOption = 1 all fields of the structure "Mesh" otherwise = 0
 %
 % Syntax
 %   Mesh = MeshLayer(Geom);                   
@@ -69,6 +72,7 @@ function Mesh = MeshLayer(varargin)
 if isstruct(varargin{1,1})
     Geom = varargin{1,1};
     Geom = FlipUD(util(Geom));
+    if isfield(Geom,'SaveOption'), SaveOption = Geom.SaveOption; else SaveOption = 1; end
     %
     if length(varargin) == 2 && varargin{1,2} == 1, Geom = FlipUD(util(Geom)); end
     %    
@@ -216,7 +220,11 @@ else
                     Mesh(kc) = MeshLayer3D(a1,l1c,a2,l2c,h(kc),npxc,npyc,npzc,xvc,yvc);
                 end
             end
-            Mesh(kc) = MoveMesh(utilMesh(Mesh(kc)),[0 0 dh(kc)]);
+            if SaveOption == 1
+                Mesh(kc) = MoveMesh(utilMesh(Mesh(kc)),[0 0 dh(kc)]);
+            else
+                Mesh(kc) = MoveMesh(utilMesh2(Mesh(kc)),[0 0 dh(kc)]);
+            end
         end
     else
 
@@ -337,6 +345,8 @@ end
 %%
 function Mesh = MeshLayer3D(a1,l1,a2,l2,h,npx,npy,npz,R,yv,NumSD)
 
+global SaveOption
+
 % MeshLayer3D 
 %   Generate a 3D mesh in parallelelipeds
 
@@ -426,7 +436,7 @@ y0 = y0(abs(y0)<=a2/2+eps);
 %y0 = y0-a2/2;
 
 if nargin <= 11
-    if ~isempty(yv) && npz==2, [x0,y0] = OptimMesh(x0,y0,xv,yv,NumSD); end
+    if ~isempty(yv) && npz==2, [x0,y0,dx,dy] = OptimMesh(x0,y0,xv,yv,NumSD); end
 end
 %
 z0 = linspace(0,h,npz);
@@ -443,17 +453,33 @@ if isempty(P0), y0 = sort([0 y0]); end
 % Maillage de la surface de base
 % ------------------------------
 
-Cn = [];
+% Cn = [];
+% for in = 1:length(y0)-1
+%     i0 = (1:length(x0)-1) + (in-1)*length(x0);
+%     i1 = i0 + length(x0);
+%     Cn = [Cn; [i0' i0'+1 i1'+1 i1']];
+% end
+Cn = nan((length(x0)-1)*(length(y0)-1),4);%
+%Cn = [];
 for in = 1:length(y0)-1
     i0 = (1:length(x0)-1) + (in-1)*length(x0);
     i1 = i0 + length(x0);
-    Cn = [Cn; [i0' i0'+1 i1'+1 i1']];
+    %Cn = [Cn; [i0' i0'+1 i1'+1 i1']];
+    Cn((1:length(x0)-1)+(in-1)*(length(x0)-1),:) = [i0' i0'+1 i1'+1 i1'];
 end
     
-CoorN = [];
+% CoorN = [];
+% jn = 1:length(x0);
+% for in = 1:length(y0)
+%     CoorN = [CoorN; [x(in,jn)' y(in,jn)' z0(1)*ones(size(y(in,jn)))']];
+% end
+
+%CoorN = [];
+CoorN = nan((length(x0))*(length(y0)),3);
 jn = 1:length(x0);
 for in = 1:length(y0)
-    CoorN = [CoorN; [x(in,jn)' y(in,jn)' z0(1)*ones(size(y(in,jn)))']];
+    %CoorN = [CoorN; [x(i,j)' y(i,j)']];
+    CoorN(jn+(in-1)*length(x0),:) = [x(in,jn)' y(in,jn)' z0(1)*ones(size(y(in,jn)))'];
 end
 
 
@@ -544,24 +570,29 @@ for k = 1:1:Nf, Cfi = [Cfi, Nf*(1:size(Cn,1))'-(Nf-k)]; end
 [ExtFa,I,J] = unique(sort(ExtFai,2),'rows');
 ExtFa = ExtFai(I,:);
 Cf = J(Cfi);
+Cf = int32(Cf);
 if size(Cf,2) == 1, Cf = Cf'; end
+
+if SaveOption == 1
 
 [ExtFaAr,I,J] = unique(sort(ExtFaAri,2),'rows');
 ExtFaAr = ExtFaAri(I,:);
 
 % Signes des arêtes et coordonnées des facettes
-TabCoorF = zeros(size(ExtFa,1),size(CoorN,2),size(ExtFa,2)); 
+TabCoorF = single(zeros(size(ExtFa,1),size(CoorN,2),size(ExtFa,2))); 
 for k = 1:1:size(TabCoorF,3)
-    TabCoorF(:,:,k) = CoorN(ExtFa(:,k),:);
+    TabCoorF(:,:,k) = single(CoorN(ExtFa(:,k),:));
 end
 CoorF = sum(TabCoorF,3)/size(TabCoorF,3);
+clear TabCoorF
 %
 %CoorF = zeros(length(ExtFa),size(CoorN,2));
 for k = 1:1:size(ExtFaAr,1)
     for ia = 1:1:size(ExtFaAr,2), if ExtAr(ExtFaAr(k,ia),1) ~= ExtFa(k,ia), ExtFaAr(k,ia) = -ExtFaAr(k,ia); end, end
     %CoorF(k,:) = sum(CoorN(ExtFa(k,:),:),1)/size(ExtFa,2); 
 end
-
+ExtFaAr = int32(ExtFaAr);
+end
 
 % -------------------------- Sous-domaines -------------------------%
 
@@ -573,6 +604,7 @@ NsdF = ones(size(ExtFa,1),1);
 
 Nsd = (length(l1)+1)*(length(l2)+1)*ones(size(Cn,1),1);    % domaine extrême
 
+if nargin < 10
 xi = -sum(l1)/2;
 yi = -sum(l2)/2;
 for k1 = 1:length(l1)
@@ -582,14 +614,29 @@ for k1 = 1:length(l1)
     end
     xi = xi+l1(k1);
 end
+end
 
 
 
 TypeElmt = 'Hexahedron';    % Type d'élément
 
-Mesh = struct('Cn',Cn,'Ca',Ca,'Cf',Cf,'CoorN',CoorN,'CoorA',CoorA,'CoorF',CoorF,'CoorV',CoorV,...
+Cn = int32(Cn);
+Ca = int32(Ca);
+
+if max(Nsd)<128, Nsd = int8(Nsd); else, Nsd = int16(Nsd); end
+ExtAr = int32(ExtAr);
+ExtFa = int32(ExtFa);
+
+
+if SaveOption == 0
+    Mesh = struct('Cn',Cn,'Ca',Ca,'Cf',Cf,'CoorN',CoorN,'CoorV',CoorV,...
+              'Nsd',Nsd,'ExtFa',ExtFa,...
+              'TypeElmt',TypeElmt,'NsdF',NsdF);
+else
+    Mesh = struct('Cn',Cn,'Ca',Ca,'Cf',Cf,'CoorN',CoorN,'CoorA',CoorA,'CoorF',CoorF,'CoorV',CoorV,...
               'Nsd',Nsd,'ExtAr',ExtAr,'ExtFa',ExtFa,'ExtFaAr',ExtFaAr,...
               'TypeElmt',TypeElmt,'NsdF',NsdF);
+end
 %
 %
 if ~isempty(R)
@@ -600,7 +647,7 @@ if ~isempty(R)
     end
     %Mesh.R = R;
 else
-    
+    if isempty(yv)
     if isempty(l1) && isempty(l2)
         Mesh.Nsd(:) = 1;
     elseif length(l1) == 1 && isempty(l2)
@@ -623,6 +670,7 @@ else
             Mesh.Nsd(P) = length(find(rx>0))+1-kr;
         end
     end
+    end
         
 end
 %%
@@ -632,11 +680,45 @@ if nargin <= 11
         if isempty(NumSD) || length(NumSD) == 1, Mesh.Nsd(:) = 2; else, Mesh.Nsd(:) = max(NumSD)+1; end
         
         %Mesh.Nsd(:) = 2;
-        for k = 1:size(xv,1)
-        in = inpolygon(Mesh.CoorV(:,1),Mesh.CoorV(:,2),xv(k,:),yv(k,:));
-        if isempty(NumSD) || length(NumSD) == 1, Mesh.Nsd(in) = 1; else, Mesh.Nsd(in) = NumSD(k); end
-        %Mesh.Nsd(in) = 1;
+        % for k = 1:size(xv,1)
+        % in = inpolygon(Mesh.CoorV(:,1),Mesh.CoorV(:,2),xv(k,:),yv(k,:));
+        % if isempty(NumSD) || length(NumSD) == 1, Mesh.Nsd(in) = 1; else, Mesh.Nsd(in) = NumSD(k); end
+        % %Mesh.Nsd(in) = 1;
+        % end
+        % in = cell(size(xv,1),1);
+        % [xf,yf] = deal(Mesh.CoorV(:,1),Mesh.CoorV(:,2));
+        % parfor k = 1:size(xv,1)
+        %     in{k} = inpolygon(xf,yf,xv(k,:),yv(k,:));
+        % end
+        %tic
+        if ~isempty(yv) && npz==2,
+            [xv,yv]=deal(single(xv),single(yv));
+            Xg = sum(xv,2)/size(xv,2);
+            Yg = sum(yv,2)/size(yv,2);
+            
+            [xf,yf] = deal(single(Mesh.CoorV(:,1)),single(Mesh.CoorV(:,2)));
+            
+            P = int32(1:length(xf));
+            for k = 1:size(xv,1)
+                P0 = (abs(xf-Xg(k))<1.01*dx(k) & abs(yf-Yg(k))<1.01*dy(k));
+                Pn = P(P0);
+                ik = inpolygon(xf(Pn),yf(Pn),xv(k,:),yv(k,:));
+                in = Pn(ik);
+                if isempty(NumSD) || length(NumSD) == 1, Mesh.Nsd(in) = 1; else, Mesh.Nsd(in) = NumSD(k); end
+            end
+        else
+            for k = 1:size(xv,1)
+                in = inpolygon(Mesh.CoorV(:,1),Mesh.CoorV(:,2),xv(k,:),yv(k,:));
+                if isempty(NumSD) || length(NumSD) == 1, Mesh.Nsd(in) = 1; else, Mesh.Nsd(in) = NumSD(k); end
+            end
+
         end
+%toc
+        
+        % for k = 1:size(xv,1)
+        %     if isempty(NumSD) || length(NumSD) == 1, Mesh.Nsd(in{k}) = 1; else, Mesh.Nsd(in{k}) = NumSD(k); end
+        % end
+
     end
     Mesh.xv = xv;
     Mesh.yv = yv;
@@ -645,8 +727,8 @@ end
 
 %%
 % Recherche des facettes extérieures
-Pf = zeros(length(Mesh.CoorF),1);
-NsdF = zeros(length(Mesh.CoorF),1);
+Pf = zeros(length(Mesh.NsdF),1);%zeros(length(Mesh.CoorF),1);
+NsdF = zeros(length(Mesh.NsdF),1);%zeros(length(Mesh.CoorF),1);
 %tic
 for ie = 1:size(Mesh.Cf,1)
     for k = 1:size(Mesh.Cf,2)
@@ -662,8 +744,8 @@ end
 %toc
 
 %
-Mesh.NsdF = NsdF;
-Mesh.TabP = Pf;
+Mesh.NsdF = int16(NsdF);
+Mesh.TabP = int16(Pf);
 %
 % Volume des éléments
 Mesh.Vol = zeros(size(Mesh.CoorV,1),1);
@@ -683,25 +765,29 @@ end
 
 function Mesh1 = NumFacet(Mesh)
 
-for k = 1:max(Mesh.Nsd), s(k).TabP = zeros(length(Mesh.ExtFa),1); end
+for k = 1:max(Mesh.Nsd), s(k).TabP = int16(zeros(length(Mesh.ExtFa),1)); end
 
 
 for kn = 1:max(Mesh.Nsd),
 
     Pe = find(Mesh.Nsd == kn);
-    Pfe = unique(Mesh.Cf(Pe,:));
-    TabPf = zeros(length(Pfe),1);
+    %Pfe = unique(Mesh.Cf(Pe,:));
+    %TabPf = zeros(length(Pfe),1);
     
-    for ke = 1:length(Pe),
-        for k = 1:size(Mesh.Cf,2),
-            s(kn).TabP(Mesh.Cf(Pe(ke),k)) = s(kn).TabP(Mesh.Cf(Pe(ke),k))+1;
-        end
-    end
+    % for ke = 1:length(Pe),
+    %     for k = 1:size(Mesh.Cf,2),
+    %         s(kn).TabP(Mesh.Cf(Pe(ke),k)) = s(kn).TabP(Mesh.Cf(Pe(ke),k))+1;
+    %     end
+    % end
+    % for ke = 1:length(Pe)
+    %       s(kn).TabP(Mesh.Cf(Pe(ke),:)) = s(kn).TabP(Mesh.Cf(Pe(ke),:))+1;
+    % end
+    s(kn).TabP(Mesh.Cf(Pe(:),:)) = s(kn).TabP(Mesh.Cf(Pe(:),:))+1;
+
+    s(kn).TabP(s(kn).TabP ~= 1) = int16(0);
+    s(kn).TabP(s(kn).TabP == 1) = int16(kn);
     
-    s(kn).TabP(s(kn).TabP ~= 1) = 0;
-    s(kn).TabP(s(kn).TabP == 1) = kn;
-    
-    Mesh.TabNsdF{kn} = s(kn).TabP;
+    Mesh.TabNsdF{kn} = int16(s(kn).TabP);
 
 %    disp(kn)
 
@@ -750,79 +836,144 @@ ExtAr = ExtAri(I,:);
 Ca(1:size(Cn,1),:) = J(Cai);
 
 % Coordonnées des arêtes
-CoorA = zeros(length(ExtAr),size(CoorN,2));
-for k = 1:1:length(ExtAr), CoorA(k,:) = sum(CoorN(ExtAr(k,:),:),1)/size(ExtAr,2); end
+%CoorA = zeros(length(ExtAr),size(CoorN,2));
+%for k = 1:1:length(ExtAr), CoorA(k,:) = sum(CoorN(ExtAr(k,:),:),1)/size(ExtAr,2); end
+TabCoorA = zeros(length(ExtAr),size(CoorN,2),size(ExtAr,2)); 
+for k = 1:1:size(TabCoorA,3)
+    TabCoorA(:,:,k) = CoorN(ExtAr(:,k),:);
+end
+CoorA = sum(TabCoorA,3)/size(TabCoorA,3);
                    
 % Signes des arêtes et coordonnées des facettes
-CoorF = zeros(size(Cn,1),size(CoorN,2));
+%CoorF = zeros(size(Cn,1),size(CoorN,2));
+TabCoorF = zeros(size(Cn,1),size(CoorN,2),size(Cn,2)); 
+for k = 1:1:size(TabCoorF,3)
+    TabCoorF(:,:,k) = CoorN(Cn(:,k),:);
+end
+CoorF = sum(TabCoorF,3)/size(TabCoorF,3);
+
 for ie = 1:size(Cn,1),
     for ia = 1:1:size(Ca,2), if ExtAr(abs(Ca(ie,ia)),1) ~= Cn(ie,ia), Ca(ie,ia) = -Ca(ie,ia); end, end
-    CoorF(ie,:) = sum(CoorN(Cn(ie,:),:),1)/size(Cn,2);
+    %CoorF(ie,:) = sum(CoorN(Cn(ie,:),:),1)/size(Cn,2);
 end
 
 end
 
 %% ----------------------------------------------------------------------
-function [x0,y0] = OptimMesh(x0,y0,xv,yv,NumSD)
+function [x0,y0,dx,dy] = OptimMesh(x0,y0,xv,yv,NumSD)
 
 
 % Mesh 2D
+[xv,yv]=deal(single(xv),single(yv));
+[x0,y0]=deal(single(x0),single(y0));
 
 [x,y] = meshgrid(x0,y0);
 
-Cn = [];
+Cn = int32(zeros((length(x0)-1)*(length(y0)-1),4));%
+%Cn = [];
 for i = 1:length(y0)-1
     i0 = (1:length(x0)-1) + (i-1)*length(x0);
     i1 = i0 + length(x0);
-    Cn = [Cn; [i0' i0'+1 i1'+1 i1']];
+    %Cn = [Cn; [i0' i0'+1 i1'+1 i1']];
+    Cn((1:length(x0)-1)+(i-1)*(length(x0)-1),:) = int32([i0' i0'+1 i1'+1 i1']);
 end
+
     
-CoorN = [];
+%CoorN = [];
+CoorN = single(nan((length(x0))*(length(y0)),2));
 j = 1:length(x0);
 for i = 1:length(y0)
-    CoorN = [CoorN; [x(i,j)' y(i,j)']];
+    %CoorN = [CoorN; [x(i,j)' y(i,j)']];
+    CoorN(j+(i-1)*length(x0),:) = [x(i,j)' y(i,j)'];
 end
 
 % Numéro des sous-domaines
 
-Nsd = ones(size(Cn,1),1);    % domaine extrême
+Nsd = int16(ones(size(Cn,1),1));    % domaine extrême
 
 % Recherche des numéros des arêtes ...
-[Ca,ExtAr,CoorA,CoorF] = RechercheArete(Cn,CoorN);
-TypeElmt = 'Quadrangle';
+% [Ca,ExtAr,CoorA,CoorF] = RechercheArete(Cn,CoorN);
+% TypeElmt = 'Quadrangle';
+% 
+% % Structure Mesh
+% Mesh = struct('Cn',Cn,'Ca',Ca,'CoorN',CoorN,'CoorA',CoorA,'CoorF',CoorF,...
+%               'Nsd',Nsd,'ExtAr',ExtAr,'TypeElmt',TypeElmt);
 
-% Structure Mesh
-Mesh = struct('Cn',Cn,'Ca',Ca,'CoorN',CoorN,'CoorA',CoorA,'CoorF',CoorF,...
-              'Nsd',Nsd,'ExtAr',ExtAr,'TypeElmt',TypeElmt);
-
-if isempty(NumSD) || length(NumSD) == 1, Mesh.Nsd(:) = 2; else, Mesh.Nsd(:) = max(NumSD)+1; end
-%
-for k = 1:size(xv,1)
-    in = inpolygon(Mesh.CoorF(:,1),Mesh.CoorF(:,2),xv(k,:),yv(k,:));
-    if isempty(NumSD) || length(NumSD) == 1, Mesh.Nsd(in) = 1; else, Mesh.Nsd(in) = NumSD(k); end
+TabCoorF = single(zeros(size(Cn,1),size(CoorN,2),size(Cn,2))); 
+for k = 1:1:size(TabCoorF,3)
+    TabCoorF(:,:,k) = CoorN(Cn(:,k),:);
 end
+CoorF = sum(TabCoorF,3)/size(TabCoorF,3);
+
+clear Cn CoorN
+
+%if isempty(NumSD) || length(NumSD) == 1, Mesh.Nsd(:) = 2; else, Mesh.Nsd(:) = max(NumSD)+1; end
+if isempty(NumSD) || length(NumSD) == 1, Nsd(:) = 2; else, Nsd(:) = max(NumSD)+1; end
+
+%
+% for k = 1:size(xv,1)
+%     in = inpolygon(Mesh.CoorF(:,1),Mesh.CoorF(:,2),xv(k,:),yv(k,:));
+%     if isempty(NumSD) || length(NumSD) == 1, Mesh.Nsd(in) = 1; else, Mesh.Nsd(in) = NumSD(k); end
+% end
+
+%tic
+Xg = sum(xv,2)/size(xv,2);
+Yg = sum(yv,2)/size(yv,2);
+
+Xv = (xv-repmat(Xg,1,size(xv,2)));
+Yv = (yv-repmat(Yg,1,size(xv,2)));
+dx = max(abs(Xv),[],2);
+dy = max(abs(Yv),[],2);
+
+%in = cell(size(xv,1),1);
+[xf,yf] = deal(CoorF(:,1),CoorF(:,2));
+
+P = int32(1:length(xf))';
+for k = 1:size(xv,1)
+    P0 = (abs(xf-Xg(k))<1.01*dx(k) & abs(yf-Yg(k))<1.01*dy(k));
+    Pn = P(P0);
+    ik = inpolygon(xf(Pn),yf(Pn),xv(k,:),yv(k,:));
+    in = Pn(ik);
+    if isempty(NumSD) || length(NumSD) == 1, Nsd(in) = 1; else, Nsd(in) = NumSD(k); end
+end
+
+%toc
+clear CoorF xf yf Xv Yv
+
+
+% for k = 1:size(xv,1)
+%     %if isempty(NumSD) || length(NumSD) == 1, Mesh.Nsd(in{k}) = 1; else, Mesh.Nsd(in{k}) = NumSD(k); end
+%     if isempty(NumSD) || length(NumSD) == 1, Nsd(in{k}) = 1; else, Nsd(in{k}) = NumSD(k); end
+% end
 
 
 %figure, VisuMesh(Mesh)
-u = reshape(Mesh.Nsd,length(x0)-1,length(y0)-1);
+%u = reshape(Mesh.Nsd,length(x0)-1,length(y0)-1);
+u = reshape(Nsd,length(x0)-1,length(y0)-1);
 
 % Reduce Mesh
 [mx,my] = size(u);
 %
 x = x0(mx+1);
-uu = u(mx,:);
+%uu = u(mx,:);
+uu = nan(size(u));
+uu(mx,:) = u(mx,:);
 for ii = mx-1:-1:1
     if ~all(u(ii,:) == u(ii+1,:))
-        uu = [u(ii,:);uu];
+        %uu = [u(ii,:);uu];
+        uu(ii,:) = u(ii,:);
         x = [x0(ii+1);x];
     end
 end
+
+P = ~isnan(uu(:,1));
+uu = uu(P,:);
 
 u = uu(:,my);
 y = y0(my+1);
 for jj = my-1:-1:1
     if ~all(uu(:,jj)==uu(:,jj+1))
-        u = [uu(:,jj),u];
+%        u = [uu(:,jj),u];
         y = [y0(jj+1);y];
     end
 end

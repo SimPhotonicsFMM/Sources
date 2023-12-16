@@ -2,6 +2,7 @@ function [MatS,Sdm] = CalculMatS3D(Data,Mesh,Phys,Dof,Mat,SdMembre,Sdm0)
 
 % CalculMatS3D 
 %   Calculation of S-Matrix MMF or HYB model for 3D Geometry (2D Grating)
+%       Symmetry at y-axis : Data.Sym = [2 0] TM , = [2 1] TE
 %
 % Syntax
 %   MatS = CalculMatS3D(Data,Mesh,Phys);
@@ -93,8 +94,8 @@ if Coef == -1
         %
 %         MatSb = {[Q1+Q2*InvP1*P2 , -Q2*InvP1 ; InvP1*P2 , -InvP1], ...
 %                  zeros(length(Q1)*2,1)};
-%        if sum(abs(Q1))<eps
-        if Data.Sym(1) == 2 && Data.Sym(2) ~= 2
+
+if Data.Sym(1) == 2 && Data.Sym(2) ~= 2
         MatSb = {[2*Q2 , -Q2*InvP1 ; eye(size(InvP1*P2)) , -InvP1], ...
                  zeros(length(Q1)*2,1)};
          else
@@ -109,8 +110,6 @@ if Coef == -1
         InvSb12 = -P*InvQ;
     end
     %
-%    MatSb = {[2*Q , -Q/P ; eye(size(Q)) , -InvP], zeros(length(P)*2,1)};
-%    InvSb12 = -P/Q;
 
 
     %
@@ -160,9 +159,9 @@ elseif Coef == +1
 
     [P,Q,V,Vp] = CalculVVp(Data,Phys,BetaX,BetaY,Dx,Dy);
 
-    InvP = inv(P);
     InvQ = inv(Q);
     if sum(Data.Sym) ~= 4
+        InvP = inv(P);
         [R_E,R_H,InvR_E,InvR_H] = MatSym(Data);
         normE = sqrt(sum(R_E.^2,1));
         normH = sqrt(sum(R_H.^2,1));
@@ -182,8 +181,8 @@ elseif Coef == +1
 %                  zeros(length(P1)*2,1)};
 %         MatSh = {[InvQ1/2+InvP2*P1*InvQ2/2 , -InvP2*P1 ; P1*InvQ2 , -2*P1], ...
 %                  zeros(length(P1)*2,1)};
-%        if sum(abs(InvQ1))<eps
-        if Data.Sym(1) == 2 && Data.Sym(2) ~= 2           
+
+if Data.Sym(1) == 2 && Data.Sym(2) ~= 2           
             MatSh = {[InvQ2 , -eye(size(InvP2*P1)) ; P1*InvQ2 , -2*P1], ...
                  zeros(length(P1)*2,1)};
          else
@@ -197,7 +196,6 @@ elseif Coef == +1
     end
 
     %
-%   MatSh = {[InvQ , -eye(size(Q)); P/Q , -2*P], zeros(length(P)*2,1)};
 
 
     end
@@ -236,7 +234,8 @@ else
 
     if nargin == 3     % MMF
         %
-        Mesh = ShiftMesh(utilMesh(Mesh));
+        [Mesh.Cn,Mesh.CoorN,Mesh.Nsd,Mesh.CoorV]=deal(Mesh.Cn,Mesh.CoorN,Mesh.Nsd,Mesh.CoorV);
+        Mesh = ShiftMesh(utilMesh2(Mesh));
         %
         if numel(Data.Indice) == 1 
             Data.nc = Data.Indice;
@@ -266,6 +265,16 @@ else
         end
         %
         [P,Q,V,Vp,InvEpz,InvMuz] = CalculVVp(Data,Phys,BetaX,BetaY,Dx,Dy);
+        %
+        hc = max(Mesh.CoorN(:,3))-min(Mesh.CoorN(:,3)); %Data.hc;
+
+        if isfield(Data,'Nsub') && ~isempty(Data.Nsub) && Data.Nsub ~= 0
+            Data.hc = hc;
+            [MatS{1},MatS{2},MatS{3},MatS{4},MatS{5},MatS{6},MatS{7}] = deal(P,Q,Data,Phys,[],[],[InvEpz(:),InvMuz(:)]);
+            return
+        end
+
+
 %        InvP = inv(P);
 %        InvQ = inv(Q);
         try
@@ -276,9 +285,7 @@ else
             dQ = Q;
         end
 
-        %
-        hc = max(Mesh.CoorN(:,3))-min(Mesh.CoorN(:,3)); %Data.hc;
-        %
+         %
 %         MatS{1} = [Q*diag(1./cosh(Vp*hc))*InvQ , Q*diag(tanh(Vp*hc))*InvP;
 %                   -P*diag(tanh(Vp*hc))*InvQ    , P*diag(1./cosh(Vp*hc))*InvP];
         %
@@ -375,8 +382,8 @@ function [P,Q,V,Vp,InvEpz,InvMuz] = CalculVVp(Data,Phys,BetaX,BetaY,Dx,Dy)
 %
 % Calcul de valeurs et vecteurs propres de la matrice de transmission
 %
-Idx = eye(length(BetaX));
-Idy = eye(length(BetaY));
+Idx = speye(length(BetaX)); %Idx = eye(length(BetaX));
+Idy = speye(length(BetaY)); %Idy = eye(length(BetaY));
 %
 MatP = deal(Data.nc.^2); 
 MatQ = deal(ones(size(MatP)));
@@ -397,9 +404,10 @@ if numel(Data.nc) == 1 && ~isfield(Data,'lx')% milieu homogène isotrope
     InvEpz = 1/(Phys.K0*MatPz);
     InvMuz = 1/(Phys.K0*MatQz);
     %
-    Kxx = diag(BetaX.^2);
-    Kyy = diag(BetaY.^2);
-    Kxy = diag(BetaX.*BetaY);
+    Dim = length(BetaX);
+    Kxx = spdiags(BetaX(:).^2,0,Dim,Dim); %Kxx = diag(BetaX.^2);
+    Kyy = spdiags(BetaY(:).^2,0,Dim,Dim); %Kyy = diag(BetaY.^2);
+    Kxy = spdiags(BetaX(:).*BetaY(:),0,Dim,Dim); %Kxy = diag(BetaX.*BetaY);
     %
 %     A = [1/(Phys.K0*MatP)*Kxy , Phys.K0*MatQ*Idx-1/(Phys.K0*MatP)*Kxx;...
 %         -Phys.K0*MatQ*Idy+1/(Phys.K0*MatP)*Kyy ,  -1/(Phys.K0*MatP)*Kxy];
@@ -437,14 +445,14 @@ if numel(Data.nc) == 1 && ~isfield(Data,'lx')% milieu homogène isotrope
     V = spdiags([Vxtm(:);Vxtm(:)],Dim/2,V); 
     V = spdiags([Vyte(:);Vyte(:)],-Dim/2,V); 
     %
-    P = (sparse(B)*V);
+    P = B*V; %(sparse(B)*V);
 else
-    InvEpz = full(1/Phys.K0*TfFct3D(Data,1./MatPz,0,0));
+    InvEpz = (1/Phys.K0*TfFct3D(Data,1./MatPz,0,0));
     Muy = full(Phys.K0*TfFct3D(Data,MatQy,1,0));
     Mux = full(Phys.K0*TfFct3D(Data,MatQx,0,1));
     InvMuz = full(1/Phys.K0*TfFct3D(Data,1./MatQz,0,0));
-    Epy = full(Phys.K0*TfFct3D(Data,MatPy,1,0));
-    Epx = full(Phys.K0*TfFct3D(Data,MatPx,0,1));
+    Epy = (Phys.K0*TfFct3D(Data,MatPy,1,0));
+    Epx = (Phys.K0*TfFct3D(Data,MatPx,0,1));
    
 %     Kx = diag(BetaX);
 %     Ky = diag(BetaY);
@@ -455,17 +463,32 @@ else
     Ky1 = repmat(BetaY(:),1,length(BetaY(:)));
     Kx2 = repmat(reshape(BetaX(:),1,length(BetaX(:))),length(BetaX(:)),1);
     Ky2 = repmat(reshape(BetaY(:),1,length(BetaY(:))),length(BetaY(:)),1);
-    
-    A = [Kx1.*(InvEpz.*Ky2) , Muy-Kx1.*(InvEpz.*Kx2) ; -Mux+Ky1.*(InvEpz.*Ky2) , -Ky1.*(InvEpz.*Kx2)];
-    B = [Kx1.*(InvMuz.*Ky2) , Epy-Kx1.*(InvMuz.*Kx2) ; -Epx+Ky1.*(InvMuz.*Ky2) , -Ky1.*(InvMuz.*Kx2)];
+    Dim = length(Kx1);
 
+    InvEpzKx2 = InvEpz.*Kx2; InvEpzKy2 = InvEpz.*Ky2;
+    %A = [Kx1.*(InvEpzKy2) , Muy-Kx1.*(InvEpzKx2) ; -Mux+Ky1.*(InvEpzKy2) , -Ky1.*(InvEpzKx2)];
+    A = blkdiag(Kx1.*(InvEpzKy2) ,  -Ky1.*(InvEpzKx2)); 
+    A(1:Dim,Dim+1:end) = Muy-Kx1.*(InvEpzKx2);
+    A(Dim+1:end,1:Dim) = -Mux+Ky1.*(InvEpzKy2);
+    %
+    InvMuzKx2 = InvMuz.*Kx2; InvMuzKy2 = InvMuz.*Ky2;
+    %B = [Kx1.*(InvMuzKy2) , Epy-Kx1.*(InvMuzKx2) ; -Epx+Ky1.*(InvMuzKy2) , -Ky1.*(InvMuzKx2)];
+    B = blkdiag(Kx1.*(InvMuzKy2) , -Ky1.*(InvMuzKx2));
+    B(1:Dim,Dim+1:end) = Epy-Kx1.*(InvMuzKx2);
+    B(Dim+1:end,1:Dim) = -Epx+Ky1.*(InvMuzKy2);
     %M = [zeros(size(A,1),size(B,2)) , A ; B , zeros(size(B,1),size(A,2))];
-    clear Epx Epy Mux Muy
+    %clear Epx Epy Mux Muy Kx1 Kx2 Ky1 Ky2 InvEpzKx2 InvEpzKy2 InvMuzKx2 InvMuzKy2
+    %
     if sum(Data.Sym) ~= 4
         [R_E,R_H,InvR_E,InvR_H] = MatSym(Data);
         A = InvR_E*A*R_H;
         B = InvR_H*B*R_E;
     end
+    if isfield(Data,'Nsub') && ~isempty(Data.Nsub) && Data.Nsub ~= 0
+        [P,Q,V,Vp] = deal(A,B,Data,Phys);
+        return
+    end
+
     M = A * B;
     [V,D] = eig(M,'nobalance');
     Vp = sqrt(diag(D));
@@ -639,7 +662,7 @@ else  % de Y en X
       
 end          
 
-Tf = sparse(f4);
+Tf = f4; %sparse(f4);
 
 end
 
