@@ -37,7 +37,7 @@ hold on
     
 %
 if length(TabLambda0) == 1
-    StrTitle = ['\lambda = ' num2str(TabLambda0) ' \micronm'];
+    StrTitle = ['\lambda = ' num2str(TabLambda0) ' \mum'];
     plot(TabTheta0*180/pi,R*100,'LineWidth',2)
     %PlotCourbe(TabTheta0*180/pi,R*100,'\Theta (°)',' (%)',StrTitle,'r')
     if nargin > 3
@@ -70,50 +70,50 @@ elseif length(TabTheta0) == 1
             legend('R (%)', 'T (%)', 'A (%)','Location','best')
         end
     end
-    xlabel('\lambda (\micronm)','FontWeight','bold','FontSize',12),
+    xlabel('\lambda (\mum)','FontWeight','bold','FontSize',12),
     ylabel('(%)','FontWeight','bold','FontSize',12),
     title(StrTitle,'FontWeight','bold','FontSize',12)
     ylim([0 100]), 
 else
      if nargin > 4
-        subplot(1,3,1), pcolor(Xl',Xa'*180/pi,R'*100)
-        xlabel('\lambda (\micronm)','FontWeight','bold','FontSize',12),
-        ylabel('\Theta (\circ)','FontWeight','bold','FontSize',12),
+        subplot(1,3,1), pcolor(Xa*180/pi,Xl,R*100)
+        xlabel('\Theta (\circ)','FontWeight','bold','FontSize',12),
+        ylabel('\lambda (\mum)','FontWeight','bold','FontSize',12),
         title('R (%)','FontWeight','bold','FontSize',12)
         shading interp; colormap jet; colorbar, axis tight
         set(gca,'LineWidth',2,'FontWeight','bold','FontSize',12)
         %
-        subplot(1,3,2), pcolor(Xl',Xa'*180/pi,T'*100)
-        xlabel('\lambda (\micronm)','FontWeight','bold','FontSize',12),
-        ylabel('\Theta (\circ)','FontWeight','bold','FontSize',12),
+        subplot(1,3,2), pcolor(Xa*180/pi,Xl,T*100)
+        xlabel('\Theta (\circ)','FontWeight','bold','FontSize',12),
+        ylabel('\lambda (\mum)','FontWeight','bold','FontSize',12),
         title('T (%)','FontWeight','bold','FontSize',12)
         shading interp; colormap jet; colorbar, axis tight
         set(gca,'LineWidth',2,'FontWeight','bold','FontSize',12)
         %
-        subplot(1,3,3), pcolor(Xl',Xa'*180/pi,A'*100)
-        xlabel('\lambda (\micronm)','FontWeight','bold','FontSize',12),
-        ylabel('\Theta (\circ)','FontWeight','bold','FontSize',12),
+        subplot(1,3,3), pcolor(Xa*180/pi,Xl,A*100)
+        xlabel('\Theta (\circ)','FontWeight','bold','FontSize',12),
+        ylabel('\lambda (\mum)','FontWeight','bold','FontSize',12),
         title('A (%)','FontWeight','bold','FontSize',12)
         shading interp; colormap jet; colorbar, axis tight
         set(gca,'LineWidth',2,'FontWeight','bold','FontSize',12)
      elseif nargin == 4
-        subplot(1,2,1), pcolor(Xl',Xa'*180/pi,R'*100)
-        xlabel('\lambda (\micronm)','FontWeight','bold','FontSize',12),
-        ylabel('\Theta (\circ)','FontWeight','bold','FontSize',12),
+        subplot(1,2,1), pcolor(Xa*180/pi,Xl,R*100)
+        xlabel('\Theta (\circ)','FontWeight','bold','FontSize',12),
+        ylabel('\lambda (\mum)','FontWeight','bold','FontSize',12),
         title('R (%)','FontWeight','bold','FontSize',12)
         shading interp; colormap jet; colorbar, axis tight
         set(gca,'LineWidth',2,'FontWeight','bold','FontSize',12)
         %
-        subplot(1,2,2), pcolor(Xl',Xa'*180/pi,T'*100)
-        xlabel('\lambda (\micronm)','FontWeight','bold','FontSize',12),
-        ylabel('\Theta (\circ)','FontWeight','bold','FontSize',12),
+        subplot(1,2,2), pcolor(Xa*180/pi,Xl,T*100)
+        xlabel('\Theta (\circ)','FontWeight','bold','FontSize',12),
+        ylabel('\lambda (\mum)','FontWeight','bold','FontSize',12),
         title('T (%)','FontWeight','bold','FontSize',12)
         shading interp; colormap jet; colorbar, axis tight
         set(gca,'LineWidth',2,'FontWeight','bold','FontSize',12)
      else
         pcolor(Xa*180/pi,Xl,R*100)
-        ylabel('\lambda (\micronm)','FontWeight','bold','FontSize',12),
         xlabel('\Theta (\circ)','FontWeight','bold','FontSize',12),
+        ylabel('\lambda (\mum)','FontWeight','bold','FontSize',12),
         title('R (%)','FontWeight','bold','FontSize',12)
         shading interp; colormap jet; colorbar, axis tight
         set(gca,'LineWidth',2,'FontWeight','bold','FontSize',12)
