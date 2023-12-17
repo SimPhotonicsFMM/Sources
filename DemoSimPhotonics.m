@@ -16,13 +16,12 @@ inc = +1;                       % inc = -1: from down, +1: from top
 %
 % Field calculation
 s = Spectrum(index,geom,lambda(1),theta(1),inc,'mx',5,'my',5);
-pol = 2;  % 0: TE, 2: TM
 %
 [x,y,z] = deal(linspace(-geom.dx/2,geom.dx/2,100),...
                linspace(-geom.dy/2,geom.dy/2,101),...
                geom.hc/2); % (xoy)
 % 
-[E,H] = CalculFieldFMM(s,x,y,z,pol);         
+[E,H] = CalculFieldFMM(s,x,y,z);         
 
 % Plot Field distribution
 figure('Position',[400 400 1100 300]), 
