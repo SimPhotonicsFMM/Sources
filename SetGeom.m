@@ -111,6 +111,10 @@ if isfield(Geom,'ab')
             P = isinf(Geom.ab{kc}(:,2));
             Geom.ab{kc}(P,2) = Geom.dy/2;
         end
+    else
+        if isempty(Geom.ab), Geom.ab=[Geom.dx/2 Geom.dy/2]; end
+        P = isinf(Geom.ab(:,2));
+        Geom.ab(P,2) = Geom.dy/2;
     end
 end
 %
