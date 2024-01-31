@@ -170,7 +170,7 @@ for kc = 1:length(Mesh0)
         Pe = Mesh.Nsd == k;
         if isfield(Mesh,'Pe') && ~isempty(Mesh.Pe), Pe = Pe & eval(char(Mesh.Pe)); end
         Pf = unique(Mesh.Cf(Pe,:));
-        if isfield(Mesh,'CoorA')
+        if isfield(Mesh,'CoorA') && k<=max(Mesh.Nsd)
             if isfield(Mesh,'TabNsdF'), Pf = find(ismember(TabPf(:),Pf) & Mesh.TabNsdF{k} == k); end
         else
             Pf = find(ismember(TabPf(:),Pf) & Mesh.TabP == 1);
