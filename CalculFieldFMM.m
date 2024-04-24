@@ -78,7 +78,7 @@ elseif nargin == 8 || nargin == 3
 end
 %
 if sum(Data(1).Sym) ~= 4
-    error('For Field Calculation, symmetry is not considered');
+    disp('For Field Calculation, symmetry is not considered');
 end
 %
 [E,H] = deal(nan(length(x(:)),6));
@@ -135,7 +135,7 @@ end
 %tic
 for k = 1:length(Mesh)
     % Grille de calcul
-    Pn = find(z(:)>=min(Mesh(k).CoorN(:,end)) & z(:)<=max(Mesh(k).CoorN(:,end)));
+    Pn = find(z(:)>=min(Mesh(k).CoorN(:,end)) & z(:)<=max(Mesh(k).CoorN(:,end))+eps/2);
     %
     if ~isempty(Pn)
         x0 = x(Pn); y0 = y(Pn); z0 = z(Pn);
@@ -453,7 +453,7 @@ if isempty(TabCoor)
     [x,y,z] = deal(Mesh.CoorN(:,1),Mesh.CoorN(:,2),Mesh.CoorN(:,3));
     z0 = z;
 else
-    Pn = TabCoor(:,3)>=min(Mesh.CoorN(:,3)) & TabCoor(:,3)<=max(Mesh.CoorN(:,3));
+    Pn = TabCoor(:,3)>=min(Mesh.CoorN(:,3)) & TabCoor(:,3)<=max(Mesh.CoorN(:,3))+eps/2;
     [x,y,z] = deal(TabCoor(Pn,1),TabCoor(Pn,2),TabCoor(Pn,3));
     z0 = z;
 end
@@ -489,14 +489,20 @@ m = size(Sb{3},1);
 [Ib,Ih] = deal(zeros(2*m,2)); % % dim 2 A vérifier
 
 mx = m/2;
+[Pdi,Pd,Pui,Pu] = deal(Sb{7},Sb{8},Sh{7},Sh{8});
 
 if Data.ChampInc == +1
         if ~isempty(Phys.PmlX) || ~isempty(Phys.PmlY) 
             Ih(Sh{7}(1),1) = 1;
             Ih(Sh{7}(2),2) = 1;
         else
-            Ih((mx-1)/2+1+3*mx,1) = 1; %Pui = [(length(mx)-1)/2+1+length(mx)+n (length(mx)-1)/2+1+n];
-            Ih((mx-1)/2+1+2*mx,2) = 1;
+            if sum(Data.Sym) ~= 4
+                [Ib,Ih] = deal(zeros(m,1));
+                Ih(Pui) = 1;
+            else
+                Ih((mx-1)/2+1+3*mx,1) = 1; 
+                Ih((mx-1)/2+1+2*mx,2) = 1;
+            end
         end
 else
         if ~isempty(Phys.PmlX) || ~isempty(Phys.PmlY), 
@@ -508,7 +514,6 @@ else
         end
 end
 %
-[Pdi,Pd,Pui,Pu] = deal(Sb{7},Sb{8},Sh{7},Sh{8});
 
 MatSh1 = ProdMatS(MatS,Sh);
 Sh1 = MatSh1{1};
@@ -521,9 +526,9 @@ Sb1 = Sb{1};
                              Sb1(nb3+1:end,1:nb1),Sb1(nb3+1:end,nb1+1:end));
                          
 SIh = Sh22*Ih(Pui,:);  % A vérifier
-if size(SIh,2) == 0, SIh = zeros(size(SIh,1),2); end
+if size(SIh,2) == 0, SIh = zeros(size(SIh,1),size(Ih,2)); end
 SIb = Sb11*Ib(Pdi,:);
-if size(SIb,2) == 0, SIb = zeros(size(SIb,1),2); end
+if size(SIb,2) == 0, SIb = zeros(size(SIb,1),size(Ih,2)); end
 
 EHb = full([-Sh21 eye(m) ; eye(m) -Sb12])\full([SIh ; SIb]);
 %
@@ -531,8 +536,8 @@ EHb = full([-Sh21 eye(m) ; eye(m) -Sb12])\full([SIh ; SIb]);
 %
 
 %
-[Ex,Ey,Ez] = deal(zeros(length(x),2));
-[Hx,Hy,Hz] = deal(zeros(length(x),2));
+[Ex,Ey,Ez] = deal(zeros(length(x),size(Ih,2)));
+[Hx,Hy,Hz] = deal(zeros(length(x),size(Ih,2)));
 
 %
 
@@ -635,9 +640,9 @@ while ~isempty(z)
         [Sb11,Sb12] = deal(Sb1(1:nb3,1:nb1),Sb1(1:nb3,nb1+1:end));
     
         SIh = Sh22*Ih(Pui,:);
-        if size(SIh,2) == 0, SIh = zeros(size(SIh,1),2); end
+        if size(SIh,2) == 0, SIh = zeros(size(SIh,1),size(Ih,2)); end
         SIb = Sb11*Ib(Pdi,:);
-        if size(SIb,2) == 0, SIb = zeros(size(SIb,1),2); end
+        if size(SIb,2) == 0, SIb = zeros(size(SIb,1),size(Ih,2)); end
     
         EHm = full([-Sh21 eye(m) ; eye(m) -Sb12])\full([SIh ; SIb]);
         C = InvMatQP*EHm;
@@ -657,8 +662,13 @@ end
 %norm(EHm-EHh)
 
 % attention au clonage
-VectE = [Ex(:,1) Ey(:,1) Ez(:,1) Ex(:,2) Ey(:,2) Ez(:,2)]*sqrt(Phys.Z0);
-VectH = [Hx(:,1) Hy(:,1) Hz(:,1) Hx(:,2) Hy(:,2) Hz(:,2)]/(1i*sqrt(Phys.Z0));
+if sum(Data.Sym) ~= 4
+    VectE = [Ex(:,1) Ey(:,1) Ez(:,1)]*sqrt(Phys.Z0);
+    VectH = [Hx(:,1) Hy(:,1) Hz(:,1)]/(1i*sqrt(Phys.Z0));
+else
+    VectE = [Ex(:,1) Ey(:,1) Ez(:,1) Ex(:,2) Ey(:,2) Ez(:,2)]*sqrt(Phys.Z0);
+    VectH = [Hx(:,1) Hy(:,1) Hz(:,1) Hx(:,2) Hy(:,2) Hz(:,2)]/(1i*sqrt(Phys.Z0));
+end
 Vect = [VectE VectH];
 
 end
@@ -667,6 +677,8 @@ end
 function TfApod = Apod(BetaX,BetaY,Eps)
 
 %Eps = 0.25;
+
+if length(BetaX(:))==1 && length(BetaY(:))==1, TfApod = 1; return; end
 
 TfApodX = ones(size(BetaX(:)));
 alphaX = BetaX*2*pi/(max(BetaX(:))-min(BetaX(:)));
@@ -685,5 +697,6 @@ Py = find(alphaY<-(1-Eps)*max(alphaY(:)));
 TfApodY(Py) = (0.5-0.5*cos(alphaY(Py)/Eps));
 
 TfApod = TfApodX.*TfApodY;
+
 
 end
