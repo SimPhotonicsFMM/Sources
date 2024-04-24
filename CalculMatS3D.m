@@ -95,7 +95,7 @@ if Coef == -1
 %         MatSb = {[Q1+Q2*InvP1*P2 , -Q2*InvP1 ; InvP1*P2 , -InvP1], ...
 %                  zeros(length(Q1)*2,1)};
 
-if Data.Sym(1) == 2 && Data.Sym(2) ~= 2
+        if Data.Sym(1) == 2 && Data.Sym(2) ~= 2
         MatSb = {[2*Q2 , -Q2*InvP1 ; eye(size(InvP1*P2)) , -InvP1], ...
                  zeros(length(Q1)*2,1)};
          else
@@ -160,6 +160,7 @@ elseif Coef == +1
     [P,Q,V,Vp] = CalculVVp(Data,Phys,BetaX,BetaY,Dx,Dy);
 
     InvQ = inv(Q);
+
     if sum(Data.Sym) ~= 4
         InvP = inv(P);
         [R_E,R_H,InvR_E,InvR_H] = MatSym(Data);
@@ -182,7 +183,7 @@ elseif Coef == +1
 %         MatSh = {[InvQ1/2+InvP2*P1*InvQ2/2 , -InvP2*P1 ; P1*InvQ2 , -2*P1], ...
 %                  zeros(length(P1)*2,1)};
 
-if Data.Sym(1) == 2 && Data.Sym(2) ~= 2           
+        if Data.Sym(1) == 2 && Data.Sym(2) ~= 2           
             MatSh = {[InvQ2 , -eye(size(InvP2*P1)) ; P1*InvQ2 , -2*P1], ...
                  zeros(length(P1)*2,1)};
          else
@@ -266,6 +267,7 @@ else
         %
         [P,Q,V,Vp,InvEpz,InvMuz] = CalculVVp(Data,Phys,BetaX,BetaY,Dx,Dy);
         %
+        %
         hc = max(Mesh.CoorN(:,3))-min(Mesh.CoorN(:,3)); %Data.hc;
 
         if isfield(Data,'Nsub') && ~isempty(Data.Nsub) && Data.Nsub ~= 0
@@ -277,6 +279,24 @@ else
 
 %        InvP = inv(P);
 %        InvQ = inv(Q);
+         InvCosH = spdiags(1./cosh(Vp*hc),0,length(Vp),length(Vp));%diag(1./cosh(Vp*hc));
+         TanH = spdiags(tanh(Vp*hc),0,length(Vp),length(Vp));
+
+         if Data.mx>55 && Data.my>55, 
+             disp('save memory if m>55')
+             clear InvMuz InvEpz V; 
+             [V,InvEpz,InvMuz] = deal([]);
+             n = length(Q);
+             MatS{1} = zeros(2*n,2*n);
+             MatS{1}(1:n,1:n) = (Q*InvCosH)/Q;
+             MatS{1}(1:n,1+n:end) = (Q*TanH)/P;
+             MatS{1}(1+n:end,1:n) = -(P*TanH)/Q;
+             MatS{1}(1+n:end,1+n:end) = (P*InvCosH)/P;
+             %MatS{1} = [(Q*InvCosH)/Q , (Q*TanH)/P;
+             %      -(P*TanH)/Q    , (P*InvCosH)/P];
+
+         else
+
         try
             dP = decomposition(P,'lu');
             dQ = decomposition(Q,'lu');
@@ -289,17 +309,14 @@ else
 %         MatS{1} = [Q*diag(1./cosh(Vp*hc))*InvQ , Q*diag(tanh(Vp*hc))*InvP;
 %                   -P*diag(tanh(Vp*hc))*InvQ    , P*diag(1./cosh(Vp*hc))*InvP];
         %
-%         InvCosH = diag(1./cosh(Vp*hc));
-%         TanH = diag(tanh(Vp*hc));
-%         MatS{1} = [(Q*InvCosH)*InvQ , (Q*TanH)*InvP;
-%                   -(P*TanH)*InvQ    , (P*InvCosH)*InvP];
+         MatS{1} = [(Q*InvCosH)/dQ , (Q*TanH)/dP;
+                   -(P*TanH)/dQ    , (P*InvCosH)/dP];
+         end
         %
-        InvCosH = repmat(reshape(1./cosh(Vp*hc),1,length(Vp)),length(Vp),1);
-        TanH = repmat(reshape(tanh(Vp*hc),1,length(Vp)),length(Vp),1);
-%         MatS{1} = [(Q.*InvCosH)*InvQ , (Q.*TanH)*InvP;
-%                   -(P.*TanH)*InvQ    , (P.*InvCosH)*InvP];
-        MatS{1} = [(Q.*InvCosH)/dQ , (Q.*TanH)/dP;
-                  -(P.*TanH)/dQ    , (P.*InvCosH)/dP];
+        % InvCosH = repmat(reshape(1./cosh(Vp*hc),1,length(Vp)),length(Vp),1);
+        % TanH = repmat(reshape(tanh(Vp*hc),1,length(Vp)),length(Vp),1);
+        % MatS{1} = [(Q.*InvCosH)/dQ , (Q.*TanH)/dP;
+        %           -(P.*TanH)/dQ    , (P.*InvCosH)/dP];
 
         MatS{2} = zeros(length(P)*2,1);
         [MatS{3},MatS{4},MatS{5},MatS{6},MatS{7}] = deal(P,Q,V,Vp,[InvEpz(:),InvMuz(:)]);
@@ -448,59 +465,144 @@ if numel(Data.nc) == 1 && ~isfield(Data,'lx')% milieu homogène isotrope
     P = B*V; %(sparse(B)*V);
 else
     InvEpz = (1/Phys.K0*TfFct3D(Data,1./MatPz,0,0));
-    Muy = full(Phys.K0*TfFct3D(Data,MatQy,1,0));
-    Mux = full(Phys.K0*TfFct3D(Data,MatQx,0,1));
-    InvMuz = full(1/Phys.K0*TfFct3D(Data,1./MatQz,0,0));
+    Muy = (Phys.K0*TfFct3D(Data,MatQy,1,0));
+    Mux = (Phys.K0*TfFct3D(Data,MatQx,0,1));
+    InvMuz = (1/Phys.K0*TfFct3D(Data,1./MatQz,0,0));
     Epy = (Phys.K0*TfFct3D(Data,MatPy,1,0));
     Epx = (Phys.K0*TfFct3D(Data,MatPx,0,1));
    
-%     Kx = diag(BetaX);
-%     Ky = diag(BetaY);
-%     A = [Kx*InvEpz*Ky , Muy-Kx*InvEpz*Kx ; -Mux+Ky*InvEpz*Ky , -Ky*InvEpz*Kx];
-%     B = [Kx*InvMuz*Ky , Epy-Kx*InvMuz*Kx ; -Epx+Ky*InvMuz*Ky , -Ky*InvMuz*Kx];
     %
-    Kx1 = repmat(BetaX(:),1,length(BetaX(:)));
-    Ky1 = repmat(BetaY(:),1,length(BetaY(:)));
-    Kx2 = repmat(reshape(BetaX(:),1,length(BetaX(:))),length(BetaX(:)),1);
-    Ky2 = repmat(reshape(BetaY(:),1,length(BetaY(:))),length(BetaY(:)),1);
-    Dim = length(Kx1);
+    Dim = length(BetaX(:));
+    Kx = spdiags(BetaX(:),0,Dim,Dim);
+    Ky = spdiags(BetaY(:),0,Dim,Dim);
 
-    InvEpzKx2 = InvEpz.*Kx2; InvEpzKy2 = InvEpz.*Ky2;
-    %A = [Kx1.*(InvEpzKy2) , Muy-Kx1.*(InvEpzKx2) ; -Mux+Ky1.*(InvEpzKy2) , -Ky1.*(InvEpzKx2)];
-    A = blkdiag(Kx1.*(InvEpzKy2) ,  -Ky1.*(InvEpzKx2)); 
-    A(1:Dim,Dim+1:end) = Muy-Kx1.*(InvEpzKx2);
-    A(Dim+1:end,1:Dim) = -Mux+Ky1.*(InvEpzKy2);
-    %
-    InvMuzKx2 = InvMuz.*Kx2; InvMuzKy2 = InvMuz.*Ky2;
-    %B = [Kx1.*(InvMuzKy2) , Epy-Kx1.*(InvMuzKx2) ; -Epx+Ky1.*(InvMuzKy2) , -Ky1.*(InvMuzKx2)];
-    B = blkdiag(Kx1.*(InvMuzKy2) , -Ky1.*(InvMuzKx2));
-    B(1:Dim,Dim+1:end) = Epy-Kx1.*(InvMuzKx2);
-    B(Dim+1:end,1:Dim) = -Epx+Ky1.*(InvMuzKy2);
-    %M = [zeros(size(A,1),size(B,2)) , A ; B , zeros(size(B,1),size(A,2))];
-    %clear Epx Epy Mux Muy Kx1 Kx2 Ky1 Ky2 InvEpzKx2 InvEpzKy2 InvMuzKx2 InvMuzKy2
+    try
+        %
+        test = 1;
+        if test == 1 %~isfield(Data,'POD')
+            % Build A
+            A = cell(2,2);
+            %A = [Kx*InvEpz*Ky , Muy-Kx*InvEpz*Kx ; -Mux+Ky*InvEpz*Ky , -Ky*InvEpz*Kx];
+            A{1,1} = Kx*InvEpz*Ky; %ProdMatDiag(BetaX,InvEpz,BetaY);
+            A{2,2} = -Ky*InvEpz*Kx; %-ProdMatDiag(BetaY,InvEpz,BetaX);
+            A{1,2} = Muy-Kx*InvEpz*Kx; %Muy-ProdMatDiag(BetaX,InvEpz,BetaX);
+            A{2,1} = -Mux+Ky*InvEpz*Ky; %-Mux+ProdMatDiag(BetaY,InvEpz,BetaY);
+            % Build B
+            B = cell(2,2);
+            if issparse(InvMuz)
+                B{1,1} = spdiags(InvMuz(1)*(BetaX(:).*BetaY(:)),0,Dim,Dim);
+                B{2,2} = -B{1,1};
+                B{1,2} = Epy-spdiags(InvMuz(1)*(BetaX(:).*BetaX(:)),0,Dim,Dim);
+                B{2,1} = -Epx+spdiags(InvMuz(1)*(BetaY(:).*BetaY(:)),0,Dim,Dim);
+            else
+                %B = [Kx*InvMuz*Ky , Epy-Kx*InvMuz*Kx ; -Epx+Ky*InvMuz*Ky , -Ky*InvMuz*Kx];
+                B{1,1} = Kx*InvMuz*Ky;
+                B{2,2} = -Ky*InvMuz*Kx;
+                B{1,2} = Epy-Kx*InvMuz*Kx;
+                B{2,1} = -Epx+Ky*InvMuz*Ky;
+                
+            end
+        else
+        % Build A
+
+        Kx2 = repmat(reshape(BetaX(:),1,length(BetaX(:))),length(BetaX(:)),1);
+        InvEpzKx2 = InvEpz.*Kx2;
+        %clear Kx2
+        Ky2 = repmat(reshape(BetaY(:),1,length(BetaY(:))),length(BetaY(:)),1);
+        InvEpzKy2 = InvEpz.*Ky2;
+        %clear Ky2
+        %
+        Kx1 = repmat(BetaX(:),1,length(BetaX(:)));
+        Ky1 = repmat(BetaY(:),1,length(BetaY(:)));
+        %
+        %A = [Kx1.*(InvEpzKy2) , Muy-Kx1.*(InvEpzKx2) ; -Mux+Ky1.*(InvEpzKy2) , -Ky1.*(InvEpzKx2)];
+        A = blkdiag(Kx1.*(InvEpzKy2) ,  -Ky1.*(InvEpzKx2)); 
+        A(1:Dim,Dim+1:end) = Muy-Kx1.*(InvEpzKx2);
+        A(Dim+1:end,1:Dim) = -Mux+Ky1.*(InvEpzKy2);
+        %clear InvEpzKx2 InvEpzKy2
+        
+        %
+        % Build B
+        if issparse(InvMuz)
+            % B = cell(2,2);
+            % B{1,1} = spdiags(InvMuz(1)*(BetaX(:).*BetaY(:)),0,Dim,Dim);
+            % B{2,2} = -B{1,1};
+            % B{1,2} = Epy-spdiags(InvMuz(1)*(BetaX(:).*BetaX(:)),0,Dim,Dim);
+            % B{2,1} = -Epx+spdiags(InvMuz(1)*(BetaY(:).*BetaY(:)),0,Dim,Dim);
+            % B = cell2mat(B);
+            B = spdiags(InvMuz(1)*(BetaX(:).*BetaY(:)),0,Dim,Dim);
+            B = blkdiag(B,-B);
+            %[i1,j1] = find(Epy+eps);
+            i = repmat(1:Dim,1,Dim); i = i(:); 
+            j = repmat(1:Dim,Dim,1); j = j(:); 
+            B12 = Epy-spdiags(InvMuz(1)*(BetaX(:).*BetaX(:)),0,Dim,Dim);
+            B = B + sparse(i,j+Dim,B12,2*Dim,2*Dim);
+            B12 = -Epx+spdiags(InvMuz(1)*(BetaY(:).*BetaY(:)),0,Dim,Dim);
+            B = B + sparse(i+Dim,j,B12,2*Dim,2*Dim);
+            
+            %B(1:Dim,Dim+1:end) = Epy-spdiags(InvMuz(1)*(BetaX(:).*BetaX(:)),0,Dim,Dim);
+            %B(Dim+1:end,1:Dim) = -Epx+spdiags(InvMuz(1)*(BetaY(:).*BetaY(:)),0,Dim,Dim);
+        else
+        Kx2 = repmat(reshape(BetaX(:),1,length(BetaX(:))),length(BetaX(:)),1);
+        InvMuzKx2 = InvMuz.*Kx2;
+        clear Kx2
+        Ky2 = repmat(reshape(BetaY(:),1,length(BetaY(:))),length(BetaY(:)),1);
+        InvMuzKy2 = InvMuz.*Ky2;
+        clear Ky2
+        %
+        %B = [Kx1.*(InvMuzKy2) , Epy-Kx1.*(InvMuzKx2) ; -Epx+Ky1.*(InvMuzKy2) , -Ky1.*(InvMuzKx2)];
+        B = blkdiag(Kx1.*(InvMuzKy2) , -Ky1.*(InvMuzKx2));
+        B(1:Dim,Dim+1:end) = Epy-Kx1.*(InvMuzKx2);
+        B(Dim+1:end,1:Dim) = -Epx+Ky1.*(InvMuzKy2);
+        %M = [zeros(size(A,1),size(B,2)) , A ; B , zeros(size(B,1),size(A,2))];
+        clear Mux Muy Epx Epy Kx1 Ky1 InvMuzKx2 InvMuzKy2
+        end
+        end
+    catch
+        warning('out of memory')
+        %Kx = spdiags(BetaX(:),0,Dim,Dim);
+        %Ky = spdiags(BetaY(:),0,Dim,Dim);
+        A = [Kx*InvEpz*Ky , Muy-Kx*InvEpz*Kx ; -Mux+Ky*InvEpz*Ky , -Ky*InvEpz*Kx];
+        B = [Kx*InvMuz*Ky , Epy-Kx*InvMuz*Kx ; -Epx+Ky*InvMuz*Ky , -Ky*InvMuz*Kx];
+        clear Kx Ky Epx Epy Mux Muy
+    end
+
     %
     if sum(Data.Sym) ~= 4
+        if iscell(A), A = cell2mat(A); end
+        if iscell(B), B = cell2mat(B); end
         [R_E,R_H,InvR_E,InvR_H] = MatSym(Data);
-        A = InvR_E*A*R_H;
-        B = InvR_H*B*R_E;
+        A = full(InvR_E*A*R_H);
+        B = full(InvR_H*B*R_E);
     end
     if isfield(Data,'Nsub') && ~isempty(Data.Nsub) && Data.Nsub ~= 0
         [P,Q,V,Vp] = deal(A,B,Data,Phys);
         return
     end
-
-    M = A * B;
-    [V,D] = eig(M,'nobalance');
-    Vp = sqrt(diag(D));
+    if iscell(A) && iscell(B)
+        M = cell2mat(ProdMatCell(A,B));
+    else
+        M = A * B;
+    end
+    clear A
+    [V,D] = eig(M,'nobalance','vector');
+    clear M
+    Vp = sqrt(D); %sqrt(diag(D));
     f = ((imag(Vp)-real(Vp))<0);
     Vp(f) = -Vp(f);
-    P = B*V;
+    if iscell(B) 
+        P = cell2mat(ProdMatCell(B,mat2cell(V,[Dim Dim],[Dim Dim])));
+    else
+        P = B*V;
+    end
+    clear B
 end    
 %
 %Q = V*diag(Vp);
-MatVp = repmat(reshape(Vp,1,length(Vp)),length(Vp),1);
-Q = V.*MatVp;
-
+%MatVp = repmat(reshape(Vp,1,length(Vp)),length(Vp),1);
+%Q = V.*MatVp;
+Q = V*spdiags(Vp(:),0,length(Vp),length(Vp));
+%clear MatVp
 end
 
 %%
@@ -637,9 +739,10 @@ if sens == 1 % de X en Y
 
     f3 = reshape(Tfu(x,reshape(f2,ny^2,mx),alx),ny,ny,2*nx-1);
     f3 = reshape(f3(:,:,topx),[size(f3,1),size(f3,2),size(topx)]);
-    f4 = reshape(permute(f3,[3, 1, 4, 2]),n,n);
+    Tf = reshape(permute(f3,[3, 1, 4, 2]),n,n);
 
-    if ~cx, f4 = inv(f4); end
+    clear f1 f2 f3
+    if ~cx, Tf = inv(Tf); end
     
 else  % de Y en X
     if cx
@@ -656,13 +759,12 @@ else  % de Y en X
     end
     f3 = reshape(Tfu(y,reshape(f2,nx^2,my),aly),nx,nx,2*ny-1);
     f3 = reshape(f3(:,:,topy),[size(f3,1),size(f3,2),size(topy)]);
-    f4 = reshape(permute(f3,[1, 3, 2, 4]),n,n);
+    Tf = reshape(permute(f3,[1, 3, 2, 4]),n,n);
     %
-    if ~cy, f4 = inv(f4); end 
+    clear f1 f2 f3
+    if ~cy, Tf = inv(Tf); end 
       
 end          
-
-Tf = f4; %sparse(f4);
 
 end
 
