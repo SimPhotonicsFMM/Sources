@@ -57,10 +57,10 @@ if nargin == 3, NumLayer = []; end % FMM calculation
 if isempty(NumLayer)
     CoefD = CalculCoefD(Sb,MatS,Sh,NumLayer);
 else
-    Sb1 = Sb; for k = 1:NumLayer-1, Sb1 = ProdMatS(Sb1,MatS(k,:)); end
-    if NumLayer < size(MatS,1)
-        Sh1 = MatS(NumLayer+1,:); 
-        for k = NumLayer+2:size(MatS,1), Sh1 = ProdMatS(Sh1,MatS(k,:)); end
+    Sb1 = Sb; for k = 1:NumLayer(1)-1, Sb1 = ProdMatS(Sb1,MatS(k,:)); end
+    if NumLayer(end) < size(MatS,1)
+        Sh1 = MatS(NumLayer(end)+1,:); 
+        for k = NumLayer(end)+2:size(MatS,1), Sh1 = ProdMatS(Sh1,MatS(k,:)); end
         Sh1 = ProdMatS(Sh1,Sh);
     else
         Sh1 = Sh;
@@ -136,13 +136,9 @@ if isempty(NumLayer)
     
 
 else  % Calcul numérique par schéma semi-implicite
+    Data = MatS{1,3};
+    Phys = MatS{1,4};
 
-    Data = MatS{3};
-    Phys = MatS{4};
-    hc = Data.hc;
-
-    A = MatS{1};
-    B = MatS{2};
     %
     %[Pdi,Pd,Pui,Pu,InvSb12] = deal(Sb{7},Sb{8},Sh{7},Sh{8},Sb{9});
     [Pdi,Pd,Pui,Pu] = deal(Sb{7},Sb{8},Sh{7},Sh{8});
@@ -164,8 +160,8 @@ else  % Calcul numérique par schéma semi-implicite
     mx = m/2;
 
     % Incidence
-    if Data.ChampInc == +1
-        if ~isempty(Phys.PmlX) || ~isempty(Phys.PmlY) 
+    if Data(1).ChampInc == +1
+        if ~isempty(Phys(1).PmlX) || ~isempty(Phys(1).PmlY) 
             Ih(Sh{7}(1),1) = 1;
             Ih(Sh{7}(2),2) = 1;
         else
@@ -173,7 +169,7 @@ else  % Calcul numérique par schéma semi-implicite
             Ih((mx-1)/2+1+2*mx,2) = 1;
         end
     else
-        if ~isempty(Phys.PmlX) || ~isempty(Phys.PmlY) 
+        if ~isempty(Phys(1).PmlX) || ~isempty(Phys(1).PmlY) 
             Ib(Sb{7}(1),1) = 1; 
             Ib(Sb{7}(2),2) = 1;
         else
@@ -182,20 +178,39 @@ else  % Calcul numérique par schéma semi-implicite
         end
         %
     end
+    %
+    if iscell(MatS{1,1}), n = 2*length(MatS{1,1}{1}); else, n = length(MatS{1,1});end
+    %n = length(MatS{1,1});
+    if isempty(Ib(Pdi,:)), Fb = zeros(n,2); else, Fb = -(Sb12\(Sb11*Ib(Pdi,:))); end
+    if isempty(Ih(Pui,:)), Fh = zeros(n,2); else, Fh = -(Sh22*Ih(Pui,:)); end
+    
 % Calcul de matrices et second membre
+if size(MatS,1) == 1
+    hc = Data.hc;
+    %A = MatS{1,1};
+    %B = MatS{1,2};
+
     Np = Data.Nsub;
     %hc = max(Mesh.CoorN(:,3))-min(Mesh.CoorN(:,3));
     dz = hc/Np;
-    n = length(A); %n=200;
+    %if ~isfield(Data,'POD'), M = cell2mat(ProdMatCell(MatS{1,1},MatS{1,2})); end
+    M = ProdMatCell(MatS{1,1},MatS{1,2});
+    M = [[M{1,1}],[M{1,2}];[M{2,1}],[M{2,2}]];
+    %
+    if iscell(MatS{1,1}), MatS{1,1} = cell2mat(MatS{1,1}); end
+    %
+    n = length(MatS{1,1}); %length(A); %n=200;
     Id = speye(n);
     %
     %if isempty(Ib(Pdi,:)), Fb = zeros(n,2); else, Fb = -dz*ASb12*(Sb11*Ib(Pdi,:)); end
-    if isempty(Ib(Pdi,:)), Fb = zeros(n,2); else, Fb = -dz*A*(Sb12\(Sb11*Ib(Pdi,:))); end
-    if isempty(Ih(Pui,:)), Fh = zeros(n,2); else, Fh = -dz*A*(Sh22*Ih(Pui,:)); end
+    Fb = dz*(MatS{1,1}*Fb); %dz*(A*Fb);
+    Fh = dz*(MatS{1,1}*Fh); %dz*(A*Fh);
     %
 
     if isfield(Data,'POD')
         %
+        if iscell(MatS{1,1}), A = cell2mat(MatS{1,1}); else, A = MatS{1,1}; end
+        %if iscell(MatS{1,2}), B = cell2mat(MatS{1,2}); else, B = MatS{1,2}; end
         Ptem = Data.POD; %Ptm = Data.POD{1}; % V*S;
         %Pte = Data.POD{2}; % V*S
         %
@@ -207,124 +222,161 @@ else  % Calcul numérique par schéma semi-implicite
         P{Np} = Ph;
         %
         %Mtm = (-Pb'*Cb+P1')*Pb + (Pb'*C1-P1'*C+Ph'*C1)*P1 + (P1'-Ph'*Ch)*Ph;
-        PbA = Pb'*A;
-        PhA = Ph'*A;
+        %PbA = Pb'*A;
+        %PhA = Ph'*A;
         if Np ==1
             %Mtem = Pb'*(-Cb*Pb+Ph) + Ph'*(Pb-Ch*Ph);
-            Mtem = -(Pb'*Pb+dz^2/2*(PbA)*(B*Pb)+dz*(PbA)*(Sb12\Pb))+Pb'*Ph+...
-                    Ph'*(Pb-Ph)-(dz^2/2*(PhA)*(B*Ph)-dz*(PhA)*(Sh21*Ph));
+            % Mtem = -(Pb'*Pb+dz^2/2*(PbA)*(B*Pb)+dz*(PbA)*(Sb12\Pb))+Pb'*Ph+...
+            %         Ph'*(Pb-Ph)-(dz^2/2*(PhA)*(B*Ph)-dz*(PhA)*(Sh21*Ph));
+            Mtem = Pb'*(-(Pb+dz^2/2*(M*Pb)+dz*A*(Sb12\Pb))+Ph)+...
+                   Ph'*((Pb-Ph)-(dz^2/2*(M*Ph)-dz*A*(Sh21*Ph)));
         else
             %Mtem = Pb'*(-Cb*Pb+P{1}) + P{1}'*(Pb-C*P{1}+P{2});
-            Mtem = -(Pb'*Pb+dz^2/2*(PbA)*(B*Pb)+dz*(PbA)*(Sb12\Pb))+Pb'*P{1}+...
-                     P{1}'*(Pb+P{2}-2*P{1})-dz^2*(P{1}'*A)*(B*P{1});
-
+            % Mtem = -(Pb'*Pb+dz^2/2*(PbA)*(B*Pb)+dz*(PbA)*(Sb12\Pb))+Pb'*P{1}+...
+            %          P{1}'*(Pb+P{2}-2*P{1})-dz^2*(P{1}'*A)*(B*P{1});
+            Mtem = Pb'*(-(Pb+dz^2/2*(M*Pb)+dz*A*(Sb12\Pb))+P{1})+...
+                   P{1}'*((Pb+P{2}-2*P{1})-dz^2*(M*P{1}));
+            
             for k = 2:Np-1
                 %Mtem = Mtem + P{k}'*(P{k-1}-C*P{k}+P{k+1});
-                Mtem = Mtem + P{k}'*(P{k-1}+P{k+1}-2*P{k})-dz^2*(P{k}'*A)*(B*P{k}); 
+                %Mtem = Mtem + P{k}'*(P{k-1}+P{k+1}-2*P{k})-dz^2*(P{k}'*A)*(B*P{k}); 
+                Mtem = Mtem + P{k}'*((P{k-1}+P{k+1}-2*P{k})-dz^2*(M*P{k})); 
             end
             %Mtem = Mtem + Ph'*(P{Np-1}-Ch*Ph);
-            Mtem = Mtem + Ph'*(P{Np-1}-Ph)-(dz^2/2*(PhA)*(B*Ph)-dz*(PhA)*(Sh21*Ph));
+            %Mtem = Mtem + Ph'*(P{Np-1}-Ph)-(dz^2/2*(PhA)*(B*Ph)-dz*(PhA)*(Sh21*Ph));
+            Mtem = Mtem + Ph'*((P{Np-1}-Ph)-(dz^2/2*(M*Ph)-dz*A*(Sh21*Ph)));
+            %Mtem = Mtem + Ph'*(P{Np-1}-(Id+(dz^2/2)*M+dz*(A*Sh21))*Ph);
 
         end
         if kp == 1
             Mtm = Mtem; 
             Ftm = Pb'*Fb(:,1) + Ph'*Fh(:,1);
-            Etm = Mtm\Ftm;
+            Etm = pinv(Mtm)*Ftm;%Mtm\Ftm;
 
         else 
             Mte = Mtem; 
             Fte = Pb'*Fb(:,2) + Ph'*Fh(:,2);
-            Ete = Mte\Fte;
+            Ete = pinv(Mte)*Fte; %Mte\Fte;
         end
         end
         %
         E = [Ptem{1}*Etm Ptem{2}*Ete];
         
     else
-    InvSb12 = Sb12\Id; %inv(Sb12);
-
-    ASb12 = A*InvSb12;  
-    M = A*B;
-    %clear B
-    %
-    C = 2*Id + dz^2*M;                 
-    C1 = Id;% - dz^2/4*M;                
-    Cb = Id + dz^2/2*M + dz*ASb12; 
-    Ch = Id + dz^2/2*M - dz*A*Sh21;    
-
-    % 
-    %clear M ASb12
-          
-    test = 0;
-    if test == 2
-% Décomposition LU
-    %bk = cell(Np+1,1);
-    ck = cell(Np+1,1);
-    %for k = 1:Np+1, ck{k} = nan(size(C)); end
-
-    InvCb = Cb\Id;%inv(Cb);%ck{1} = -Cb;%bk{1} = -Cb;
-
-    ck{1} = -InvCb*C1;%ck{1} = inv(ck{1})*C1;%ck{1} = inv(bk{1})*C1;%bk{1}\C1;
-    %bk{1} = [];
-    for k = 2:Np
-        ck{k} = -C-ck{k-1};%bk{k} = -C-ck{k-1};
-        ck{k} =  inv(ck{k});%ck{k} =  inv(bk{k});%bk{k}\Id;
-        %bk{k} = [];
-    end
-    ck{Np+1} = -Ch-C1*ck{Np};%bk{Np+1} = -Ch-C1*ck{Np}; 
-    %ck{Np+1} = inv(ck{Np+1});%ck{Np+1} = inv(bk{Np+1});%bk{Np+1}\Id;%
-    clear Cb Ch C
-% Résolution
-    [xk,yk] = deal(cell(Np+1,1));
-    yk{1} = -InvCb*Fb;%yk{1} = -Cb\Fb;%bk{1}\Fb;
-    clear InvCb
-    for k = 2:Np, yk{k} = -ck{k}*yk{k-1}; end
-%    yk{Np+1} = ck{Np+1}*(Fh-C1*yk{Np});
-    yk{Np+1} = ck{Np+1}\(Fh-C1*yk{Np});
-    clear C1
-    %
-    ck{Np+1} = [];
-    xk{Np+1} = yk{Np+1};
-    for k = Np:-1:1, xk{k} = yk{k}-ck{k}*xk{k+1}; ck{k}=[];end
-    E = nan(n*(Np+1),2);
-    for k = 1:Np+1, E((1:n)+n*(k-1),:) = xk{k}; end
-
-    else
-
-      if Np == 1
-        Mat = blkdiag(-Cb,-Ch); Mat(n+1:end,1:n) = C1; Mat(1:n,n+1:end) = C1;
-        E = Mat\[Fb;Fh];
-      else
-          if test == 0
-        InvCb = inv(Cb);%Cb\Id;
-        B1 = C - InvCb*C1;
-        F1 = InvCb*Fb;
+        %InvSb12 = Sb12\Id; %inv(Sb12);
+    
+        %ASb12 = A*InvSb12;  
+        %M = A*B;
+        %clear B
         %
-        for k = 2:Np-1
-            InvB1 = inv(B1);%B1\Id;%
-            F1 = InvB1*F1;
-            B1 = C - InvB1;
-        end
-        %
-        Mat = blkdiag(-B1,-Ch); Mat(n+1:end,1:n) = C1; Mat(1:n,n+1:end) = eye(n);
-        TabE = Mat\[F1;Fh];
-        %no
-        xk = cell(Np+1,1);
-        xk{Np} = TabE(1:n,:); % E(Np-1)
-        xk{Np+1} = TabE(n+1:end,:); % Eh
-        for k = Np-1:-1:1, xk{k} = C*xk{k+1} - xk{k+2}; end
+        %C = 2*Id + dz^2*(A*B);                 
+        %C1 = Id;% - dz^2/4*M;                
+        %Cb = C/2 + dz*(A/Sb12); %C/2 + dz*A*InvSb12; %Id + dz^2/2*M + dz*A*InvSb12; 
+        %Ch = C/2  - dz*A*Sh21; %Id + dz^2/2*M - dz*A*Sh21;    
+
+        % 
+                      
+        test = 0;
+        if test == 1
+            A = MatS{1,1};
+            B = MatS{1,2};
+            C = 2*Id + dz^2*(A*B);
+            Cb = C/2 + dz*(A/Sb12);
+            Ch = C/2  - dz*A*Sh21;
+        % Décomposition LU
+            %bk = cell(Np+1,1);
+            ck = cell(Np+1,1);
+            %for k = 1:Np+1, ck{k} = nan(size(C)); end
+        
+            InvCb = Cb\Id;%inv(Cb);%ck{1} = -Cb;%bk{1} = -Cb;
+        
+            ck{1} = -InvCb;%ck{1} = inv(ck{1})*C1;%ck{1} = inv(bk{1})*C1;%bk{1}\C1;
+            %bk{1} = [];
+            for k = 2:Np
+                ck{k} = -C-ck{k-1};%bk{k} = -C-ck{k-1};
+                ck{k} =  inv(ck{k});%ck{k} =  inv(bk{k});%bk{k}\Id;
+                %bk{k} = [];
+            end
+            ck{Np+1} = -Ch-ck{Np};%bk{Np+1} = -Ch-C1*ck{Np}; 
+            %ck{Np+1} = inv(ck{Np+1});%ck{Np+1} = inv(bk{Np+1});%bk{Np+1}\Id;%
+            clear Cb Ch C
+        % Résolution
+            [xk,yk] = deal(cell(Np+1,1));
+            yk{1} = -InvCb*Fb;%yk{1} = -Cb\Fb;%bk{1}\Fb;
+            clear InvCb
+            for k = 2:Np, yk{k} = -ck{k}*yk{k-1}; end
+        %    yk{Np+1} = ck{Np+1}*(Fh-C1*yk{Np});
+            yk{Np+1} = ck{Np+1}\(Fh-yk{Np});
             %
-        E = nan(n*(Np+1),2);
-        for k = 1:Np+1, E((1:n)+n*(k-1),:) = xk{k}; end
-        %
+            ck{Np+1} = [];
+            xk{Np+1} = yk{Np+1};
+            for k = Np:-1:1, xk{k} = yk{k}-ck{k}*xk{k+1}; ck{k}=[]; yk{k} = []; end
+            %
+            E = nan(n*(Np+1),2);
+            for k = 1:Np+1, E((1:n)+n*(k-1),:) = xk{k}; xk{k} = []; end
+    
+        else
+
+          if Np == inf
+            A = MatS{1,1};
+            B = MatS{1,2};
+            C = 2*Id + dz^2*(A*B);
+            Cb = C/2+dz*(A*inv(Sb12)); %Cb;
+            Ch = C/2-dz*(A*Sh21);
+            Mat = blkdiag(-Cb,-Ch); Mat(n+1:end,1:n) = Id; Mat(1:n,n+1:end) = Id;
+            E = Mat\[Fb;Fh];
           else
-        TestInv;
+            %InvB1 = cell(Np,1);
+            %F1 = cell(Np,1);
+            %B = MatS{1,2};
+            if iscell(MatS{1,2})
+                C = 2*Id + dz^2*M;
+                clear M
+            else
+                C = 2*Id + dz^2*(MatS{1,1}*MatS{1,2});%2*Id + dz^2*(A*B);
+            end
+            %clear B
+            
+
+            B = C/2+dz*(MatS{1,1}*inv(Sb12)); %C/2+dz*(A*inv(Sb12)); %Cb;
+            F = Fb; %F1{1} = Fb;
+            %tic, 
+            B = inv(B); %tB = toc;
+            %disp(tB) %InvB1{1} = inv(B1);
+            %
+            for k = 2:Np
+                F = B*F; %F1{k} = InvB1{k-1}*F1{k-1};
+                B = C - B; %B1 = C - InvB1{k-1};
+                B = inv(B); %InvB1{k} = inv(B1);
+            end
+            %
+            %Mat = blkdiag(-B1,-Ch); Mat(n+1:end,1:n) = Id; Mat(1:n,n+1:end) = Id;
+            %TabE = Mat\[F1{end};Fh];
+            %no
+            xk = cell(Np+1,1);
+            %xk{Np} = TabE(1:n,:); % E(Np-1)
+            %xk{Np+1} = TabE(n+1:end,:); % Eh
+            Fh = Fh + B*F; %Fh + InvB*F
+            B = (C/2-dz*(MatS{1,1}*Sh21))-B;%(C/2-dz*(A*Sh21))-InvB; %Ch-InvB1; %Ch-InvB1{Np};
+            xk{Np+1} = -B\Fh;%-B1\(Fh+InvB1{Np}*F1{Np});
+            B = (C/2-dz*(MatS{1,1}*Sh21))-B;
+            xk{Np} = -B*(F - xk{Np+1}); %-InvB1{Np}*(F1{Np}-xk{Np+1});
+            for k = Np-1:-1:1, xk{k} = C*xk{k+1}-xk{k+2}; end
+            %for k = Np-1:-1:1, xk{k} = -InvB1{k}*(F1{k} - xk{k+1}); end
+                %
+            E = nan(n*(Np+1),2);
+            for k = 1:Np+1, E((1:n)+n*(k-1),:) = xk{k}; end
+            
           end
-      end
+        end
     end
 
     clear ck
-    end
+else
+    TestInvNew
+end
+
+
 % Calcul CoefD
     
     H = zeros(size(E));
@@ -347,17 +399,54 @@ else  % Calcul numérique par schéma semi-implicite
         H(n*Np+1:n*(Np+1),:) = Sh21*E(n*Np+1:n*(Np+1),:)+ Sh22*Ih(Pui,:);
     end
     %
-    if ~isfield(Data,'POD')
-    InvA = inv(A);
-    for k = 1:Np-1
-        H((1:n)+n*k,:) = (InvA*(E((1:n)+n*(k+1),:)-E((1:n)+n*(k-1),:)))/(2*dz);
-    end
+    if ~isfield(Data,'POD') && size(MatS,1) == 1
+        %warning(' A faire cas plusieurs couches')
+        % InvA = inv(MatS{1,1});%inv(A);
+        % for k = 1:Np-1
+        %     H((1:n)+n*k,:) = (InvA*(E((1:n)+n*(k+1),:)-E((1:n)+n*(k-1),:)))/(2*dz);
+        % end
+    elseif size(MatS,1) > 1
+        % Magnetic field calculation
+        yk = cell(Np+1,1);
+        yk{1} = H(1:n,:);
+        yk{Np+1} = H(n*Np+1:n*(Np+1),:);
+        P = 1;
+        for k = 1:Ns
+            dz1 = hc1(k)/Np1(k);
+            A1 = MatS{k,1};
+            B1 = MatS{k,2};
+            if iscell(A1), A1 = cell2mat(A1); end
+            if iscell(B1), B1 = cell2mat(B1); end
+            for ks = 1:Np1(k)-1
+                P = P+1;
+                %yk{P} = A1\(xk{P+1}-xk{P-1})/(2*dz1);
+                yk{P} = ak{k}*(xk{P+1}-xk{P-1})/(2*dz1);
+            end
+            if P <= Np-1
+                dz2 = hc1(k+1)/Np1(k+1);
+                A2 = MatS{k+1,1};
+                B2 = MatS{k+1,2};
+                if iscell(A2), A2 = cell2mat(A2); end
+                if iscell(B2), B2 = cell2mat(B2); end
+
+                P = P+1;
+                %yk{P} = 0.5*(A2\(xk{P+1}-xk{P})/dz2-dz2/2*B2*xk{P} ...
+                %            -A1\(xk{P-1}-xk{P})/dz1+dz1/2*B1*xk{P});
+                yk{P} = 0.5*(ak{k+1}*(xk{P+1}-xk{P})/dz2-dz2/2*B2*xk{P} ...
+                            -ak{k}*(xk{P-1}-xk{P})/dz1+dz1/2*B1*xk{P});
+            end
+          
+        end
+        H = nan(n*(Np+1),2);
+        for k = 1:Np+1, H((1:n)+n*(k-1),:) = yk{k}; end
+        E = xk; H = yk;
     end
     
     CoefD = full([Dh;Db]);
 end
-
 end
+
+
 
 %-------------------------------------------------------------%
 function [Mtm,Mte,Ftm,Fte] = CalculPOD(Ptm,Pte,C,C1,Cb,Ch,Fb,Fh,Np)
