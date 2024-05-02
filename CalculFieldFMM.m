@@ -32,7 +32,7 @@ function [E,H] = CalculFieldFMM(Data,Mesh,Phys,Sb,MatS,Sh,X,Y,Z)
 %   [x,y,z] = ndgrid(linspace(-dx/2,dx/2,100),linspace(-dy/2,dy/2,101),0);
 %   [VectE,VectH] = CalculFieldFMM(s,x,y,z); 
 
-% Date of the latest version : 24 January 2023
+% Date of the latest version : 02 May 2024
 % Author : Mondher Besbes (LCF / CNRS / IOGS)
 
 
@@ -40,7 +40,12 @@ if nargin == 4 || nargin == 5, Z = Sb; end
 if nargin <= 5
     s = Data;
     if nargin == 5, pol = MatS; end
-    [X,Y] = deal(Mesh,Phys);
+    if nargin == 2
+        [x,y] = deal(Mesh(:,1),Mesh(:,2));
+        z = Mesh(:,end);
+    else
+        [X,Y] = deal(Mesh,Phys);
+    end
     [Data,Mesh,Phys,Sb,MatS,Sh] = deal(s.Data,s.Mesh,s.Phys,s.Sb,s.MatS,s.Sh);
     if ~isfield(s,'Nper'), s.Nper = 1; end
     Mesh = repmat(Mesh,1,s.Nper);
