@@ -139,6 +139,7 @@ if isfield(Geom,'Plot') && Geom.Plot == 1
                 if isfield(Geom,'Dep'), Dep0 = Geom.Dep{kc}; else, Dep0 = zeros(size(a0)); end
                 if isfield(Geom,'Angle'), angle0 = Geom.Angle{kc}; else, angle0 = zeros(size(n0,1),1); end
     
+                if iscell(Np), Np = cell2mat(Np); end
                 [x0,y0] = sf2d(n0, a0, angle0, Dep0, Np);
                 xv = [xv ; x0];
                 yv = [yv ; y0];
