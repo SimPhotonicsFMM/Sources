@@ -143,7 +143,7 @@ else  % Calcul numérique par schéma semi-implicite
     %[Pdi,Pd,Pui,Pu,InvSb12] = deal(Sb{7},Sb{8},Sh{7},Sh{8},Sb{9});
     [Pdi,Pd,Pui,Pu] = deal(Sb{7},Sb{8},Sh{7},Sh{8});
     
-    m = size(Sb{3},1);
+    m = size(Sb{6},1); %size(Sb{3},1);
     
     Sh1 = Sh{1};
     [n1,n2,n3,n4] = deal(m,length(Pui),length(Pu),m);
@@ -156,7 +156,8 @@ else  % Calcul numérique par schéma semi-implicite
     %
     %
     [Ib,Ih] = deal(zeros(2*m,2)); % % dim 2 A vérifier
-    
+    if sum(Data.Sym) ~= 4, [Ib,Ih] = deal(zeros(2*m,1)); end
+
     mx = m/2;
 
     % Incidence
@@ -165,24 +166,32 @@ else  % Calcul numérique par schéma semi-implicite
             Ih(Sh{7}(1),1) = 1;
             Ih(Sh{7}(2),2) = 1;
         else
+            if sum(Data.Sym) ~= 4
+                Ih(Pui) = 1;
+            else
             Ih((mx-1)/2+1+3*mx,1) = 1; %Pui = [(length(mx)-1)/2+1+length(mx)+n (length(mx)-1)/2+1+n];
             Ih((mx-1)/2+1+2*mx,2) = 1;
+            end
         end
     else
         if ~isempty(Phys(1).PmlX) || ~isempty(Phys(1).PmlY) 
             Ib(Sb{7}(1),1) = 1; 
             Ib(Sb{7}(2),2) = 1;
         else
+            if sum(Data.Sym) ~= 4
+                Ib(Pdi) = 1;
+            else
             Ib((mx-1)/2+1+mx,1) = 1; %Pdi = [(length(mx)-1)/2+1+length(mx) (length(mx)-1)/2+1];
             Ib((mx-1)/2+1,2) = 1;
+            end
         end
         %
     end
     %
     if iscell(MatS{1,1}), n = 2*length(MatS{1,1}{1}); else, n = length(MatS{1,1});end
     %n = length(MatS{1,1});
-    if isempty(Ib(Pdi,:)), Fb = zeros(n,2); else, Fb = -(Sb12\(Sb11*Ib(Pdi,:))); end
-    if isempty(Ih(Pui,:)), Fh = zeros(n,2); else, Fh = -(Sh22*Ih(Pui,:)); end
+    if isempty(Ib(Pdi,:)), Fb = zeros(n,size(Ib,2)); else, Fb = -(Sb12\(Sb11*Ib(Pdi,:))); end
+    if isempty(Ih(Pui,:)), Fh = zeros(n,size(Ih,2)); else, Fh = -(Sh22*Ih(Pui,:)); end
     
 % Calcul de matrices et second membre
 if size(MatS,1) == 1
@@ -194,10 +203,15 @@ if size(MatS,1) == 1
     %hc = max(Mesh.CoorN(:,3))-min(Mesh.CoorN(:,3));
     dz = hc/Np;
     %if ~isfield(Data,'POD'), M = cell2mat(ProdMatCell(MatS{1,1},MatS{1,2})); end
-    M = ProdMatCell(MatS{1,1},MatS{1,2});
-    M = [[M{1,1}],[M{1,2}];[M{2,1}],[M{2,2}]];
+    
     %
-    if iscell(MatS{1,1}), MatS{1,1} = cell2mat(MatS{1,1}); end
+    if iscell(MatS{1,1})
+        M = ProdMatCell(MatS{1,1},MatS{1,2});
+        M = [[M{1,1}],[M{1,2}];[M{2,1}],[M{2,2}]];
+        MatS{1,1} = cell2mat(MatS{1,1}); 
+    else
+        M = MatS{1,1}*MatS{1,2};
+    end
     %
     n = length(MatS{1,1}); %length(A); %n=200;
     Id = speye(n);
@@ -276,13 +290,20 @@ if size(MatS,1) == 1
 
         % 
                       
-        test = 0;
+        test = 2;
         if test == 1
             A = MatS{1,1};
             B = MatS{1,2};
-            C = 2*Id + dz^2*(A*B);
-            Cb = C/2 + dz*(A/Sb12);
-            Ch = C/2  - dz*A*Sh21;
+            if iscell(MatS{1,2})
+                C = 2*Id + dz^2*M;
+                %clear M
+            else
+                C = 2*Id + dz^2*(MatS{1,1}*MatS{1,2});%2*Id + dz^2*(A*B);
+            end
+
+            %C = 2*Id + dz^2*(A*B);
+            Cb = C/2 + dz*(MatS{1,1}/Sb12);
+            Ch = C/2  - dz*MatS{1,1}*Sh21;
         % Décomposition LU
             %bk = cell(Np+1,1);
             ck = cell(Np+1,1);
@@ -315,7 +336,7 @@ if size(MatS,1) == 1
             E = nan(n*(Np+1),2);
             for k = 1:Np+1, E((1:n)+n*(k-1),:) = xk{k}; xk{k} = []; end
     
-        else
+        elseif test == 2
 
           if Np == inf
             A = MatS{1,1};
@@ -329,12 +350,12 @@ if size(MatS,1) == 1
             %InvB1 = cell(Np,1);
             %F1 = cell(Np,1);
             %B = MatS{1,2};
-            if iscell(MatS{1,2})
+%            if iscell(MatS{1,2})
                 C = 2*Id + dz^2*M;
-                clear M
-            else
-                C = 2*Id + dz^2*(MatS{1,1}*MatS{1,2});%2*Id + dz^2*(A*B);
-            end
+                %clear M
+%            else
+%                C = 2*Id + dz^2*(MatS{1,1}*MatS{1,2});%2*Id + dz^2*(A*B);
+%            end
             %clear B
             
 
@@ -356,18 +377,53 @@ if size(MatS,1) == 1
             xk = cell(Np+1,1);
             %xk{Np} = TabE(1:n,:); % E(Np-1)
             %xk{Np+1} = TabE(n+1:end,:); % Eh
-            Fh = Fh + B*F; %Fh + InvB*F
+            Fh1 = Fh + B*F; %Fh + InvB*F
             B = (C/2-dz*(MatS{1,1}*Sh21))-B;%(C/2-dz*(A*Sh21))-InvB; %Ch-InvB1; %Ch-InvB1{Np};
-            xk{Np+1} = -B\Fh;%-B1\(Fh+InvB1{Np}*F1{Np});
+            %rcond(B)
+            xk{Np+1} = -B\Fh1;%-B1\(Fh+InvB1{Np}*F1{Np});
             B = (C/2-dz*(MatS{1,1}*Sh21))-B;
             xk{Np} = -B*(F - xk{Np+1}); %-InvB1{Np}*(F1{Np}-xk{Np+1});
             for k = Np-1:-1:1, xk{k} = C*xk{k+1}-xk{k+2}; end
             %for k = Np-1:-1:1, xk{k} = -InvB1{k}*(F1{k} - xk{k+1}); end
                 %
-            E = nan(n*(Np+1),2);
+            E = nan(n*(Np+1),size(Ib,2));
             for k = 1:Np+1, E((1:n)+n*(k-1),:) = xk{k}; end
             
           end
+          elseif test == 3
+            if iscell(MatS{1,2})
+                C = 2*Id + dz^2*M;
+                clear M
+            else
+                C = 2*Id + dz^2*(MatS{1,1}*MatS{1,2});%2*Id + dz^2*(A*B);
+            end
+            %
+            Cb = C/2+dz*(MatS{1,1}*inv(Sb12));
+            Ch = C/2-dz*(MatS{1,1}*Sh21);
+            %
+            D0 = Id; 
+            D1 = Cb;
+            %
+            F0 = 0;
+            F1 = Fb;
+            %
+            for k = 2:Np
+                F2 = C*F1-F0; 
+                D2 = C*D1 - D0; 
+                F0 = F1; F1 = F2;
+                D0 = D1; D1 = D2;
+            end
+            %
+            D2 = Ch*D1-D0;
+            %rcond(D2)
+            xk{1} = -D2\(Fh+Ch*F1-F0); % vérifier le nombre de condition
+            xk{Np+1} = F1+D1*xk{1};
+            %
+            xk{2} = Fb + Cb*xk{1};
+            for k = 3:Np, xk{k} = C*xk{k-1}-xk{k-2}; end
+            %
+            E = nan(n*(Np+1),2);
+            for k = 1:Np+1, E((1:n)+n*(k-1),:) = xk{k}; end
         end
     end
 
@@ -413,9 +469,9 @@ end
         P = 1;
         for k = 1:Ns
             dz1 = hc1(k)/Np1(k);
-            A1 = MatS{k,1};
+            %A1 = MatS{k,1};
             B1 = MatS{k,2};
-            if iscell(A1), A1 = cell2mat(A1); end
+            %if iscell(A1), A1 = cell2mat(A1); end
             if iscell(B1), B1 = cell2mat(B1); end
             for ks = 1:Np1(k)-1
                 P = P+1;
@@ -424,9 +480,9 @@ end
             end
             if P <= Np-1
                 dz2 = hc1(k+1)/Np1(k+1);
-                A2 = MatS{k+1,1};
+                %A2 = MatS{k+1,1};
                 B2 = MatS{k+1,2};
-                if iscell(A2), A2 = cell2mat(A2); end
+                %if iscell(A2), A2 = cell2mat(A2); end
                 if iscell(B2), B2 = cell2mat(B2); end
 
                 P = P+1;
