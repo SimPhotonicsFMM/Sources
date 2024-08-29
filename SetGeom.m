@@ -108,12 +108,12 @@ if isfield(Geom,'ab')
     if iscell(Geom.ab)
         for kc = 1:length(Geom.ab)
             if isempty(Geom.ab{kc}), Geom.ab{kc}=[Geom.dx/2 Geom.dy/2]; end
-            P = isinf(Geom.ab{kc}(:,2));
+            P = isinf(Geom.ab{kc}(:,2)) | isnan(Geom.ab{kc}(:,2));
             Geom.ab{kc}(P,2) = Geom.dy/2;
         end
     else
         if isempty(Geom.ab), Geom.ab=[Geom.dx/2 Geom.dy/2]; end
-        P = isinf(Geom.ab(:,2));
+        P = isinf(Geom.ab(:,2)) | isnan(Geom.ab(:,2));
         Geom.ab(P,2) = Geom.dy/2;
     end
 end
@@ -158,9 +158,7 @@ if isfield(Geom,'Plot') && Geom.Plot == 1
     end
 end
 %
-if nargout == 2
-    Mesh = MeshLayer(Geom);
-end
+
 
 return
 
