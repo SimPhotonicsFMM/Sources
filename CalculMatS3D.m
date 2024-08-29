@@ -10,7 +10,7 @@ function [MatS,Sdm] = CalculMatS3D(Data,Mesh,Phys,Dof,Mat,SdMembre,Sdm0)
 %   MatS = CalculMatS3D(Data,Mesh,Phys,Dof,Mat);
 %
 % Description
-%   Data : Data of the priblem
+%   Data : Data of the problem
 %   Mesh : Mesh of the structure (CoorN, Cn, Nsd,...CoorA, Ca, ExtAr, )
 %   Phys : Material properties (Epsr, Mur, ...,Lambda0, K0, Omega, TypePol)
 %   Coef : +1 Upstrat S-Matrix ; -1 Substrat S-Matrix
@@ -96,7 +96,7 @@ if Coef == -1
 %                  zeros(length(Q1)*2,1)};
 
         if Data.Sym(1) == 2 && Data.Sym(2) ~= 2
-        MatSb = {[2*Q2 , -Q2*InvP1 ; eye(size(InvP1*P2)) , -InvP1], ...
+        MatSb = {[2*Q2 , -Q2*InvP1 ; eye(size(InvP1,1),size(P2,2)) , -InvP1], ...
                  zeros(length(Q1)*2,1)};
          else
 % 
@@ -184,7 +184,7 @@ elseif Coef == +1
 %                  zeros(length(P1)*2,1)};
 
         if Data.Sym(1) == 2 && Data.Sym(2) ~= 2           
-            MatSh = {[InvQ2 , -eye(size(InvP2*P1)) ; P1*InvQ2 , -2*P1], ...
+            MatSh = {[InvQ2 , -eye(size(InvP2,1),size(P1,2)) ; P1*InvQ2 , -2*P1], ...
                  zeros(length(P1)*2,1)};
          else
              MatSh = {[InvQ1 , -eye(size(InvP2*P1)) ; P1*InvQ2 , -2*P1], ...
@@ -282,7 +282,7 @@ else
          InvCosH = spdiags(1./cosh(Vp*hc),0,length(Vp),length(Vp));%diag(1./cosh(Vp*hc));
          TanH = spdiags(tanh(Vp*hc),0,length(Vp),length(Vp));
 
-         if Data.mx>55 && Data.my>55, 
+         if Data.mx>5555 && Data.my>5555, 
              disp('save memory if m>55')
              clear InvMuz InvEpz V; 
              [V,InvEpz,InvMuz] = deal([]);
@@ -569,11 +569,20 @@ else
 
     %
     if sum(Data.Sym) ~= 4
-        if iscell(A), A = cell2mat(A); end
-        if iscell(B), B = cell2mat(B); end
+        %
         [R_E,R_H,InvR_E,InvR_H] = MatSym(Data);
-        A = full(InvR_E*A*R_H);
-        B = full(InvR_H*B*R_E);
+        %
+        if iscell(A)
+            %A = cell2mat(A); B = cell2mat(B);
+            A = InvR_E(:,1:end/2)*(A{1,1}*R_H(1:end/2,:)+A{1,2}*R_H(1+end/2:end,:))+...
+                InvR_E(:,1+end/2:end)*(A{2,1}*R_H(1:end/2,:)+A{2,2}*R_H(1+end/2:end,:));
+            %
+            B = InvR_H(:,1:end/2)*(B{1,1}*R_E(1:end/2,:)+B{1,2}*R_E(1+end/2:end,:))+...
+                InvR_H(:,1+end/2:end)*(B{2,1}*R_E(1:end/2,:)+B{2,2}*R_E(1+end/2:end,:));
+        else
+            A = full(InvR_E*A*R_H);
+            B = full(InvR_H*B*R_E);
+        end
     end
     if isfield(Data,'Nsub') && ~isempty(Data.Nsub) && Data.Nsub ~= 0
         [P,Q,V,Vp] = deal(A,B,Data,Phys);
