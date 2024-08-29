@@ -55,7 +55,7 @@ classdef util
         end
         %
         % unique elements with tolerance
-        function y = unique2(obj,tol) 
+        function [y,P] = unique2(obj,tol) 
             x = [obj.Value];
             if nargin == 1, tol = 0; end
             if tol == 0
