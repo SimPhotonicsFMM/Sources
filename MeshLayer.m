@@ -1,6 +1,6 @@
 function Mesh = MeshLayer(varargin)
 
-global SaveOption
+global SaveOption OptMesh
 
 % MeshLayer 
 %   Generate a 2D mesh in quadrangles or 3D in parallelelipeds
@@ -73,6 +73,7 @@ if isstruct(varargin{1,1})
     Geom = varargin{1,1};
     Geom = FlipUD(util(Geom));
     if isfield(Geom,'SaveOption'), SaveOption = Geom.SaveOption; else SaveOption = 1; end
+    if isfield(Geom,'OptimMesh'), OptMesh = Geom.OptimMesh; else, OptMesh = 1; end
     %
     if length(varargin) == 2 && varargin{1,2} == 1, Geom = FlipUD(util(Geom)); end
     %    
@@ -181,6 +182,8 @@ if isstruct(varargin{1,1})
         end
     end
     return
+else
+    SaveOption = 1;
 end
 %
 [a1,l1] = deal(varargin{1,1},varargin{1,2});
@@ -345,7 +348,7 @@ end
 %%
 function Mesh = MeshLayer3D(a1,l1,a2,l2,h,npx,npy,npz,R,yv,NumSD)
 
-global SaveOption
+global SaveOption OptMesh
 
 % MeshLayer3D 
 %   Generate a 3D mesh in parallelelipeds
@@ -436,7 +439,8 @@ y0 = y0(abs(y0)<=a2/2+eps);
 %y0 = y0-a2/2;
 
 if nargin <= 11
-    if ~isempty(yv) && npz==2, [x0,y0,dx,dy] = OptimMesh(x0,y0,xv,yv,NumSD); end
+    %if ~isempty(yv) && npz==2, [x0,y0,dx,dy] = OptimMesh(x0,y0,xv,yv,NumSD); end
+    if ~isempty(yv) && OptMesh == 1, [x0,y0,dx,dy] = OptimMesh(x0,y0,xv,yv,NumSD); end
 end
 %
 z0 = linspace(0,h,npz);
@@ -504,12 +508,12 @@ end
 
 % Recherche des arêtes
 % --------------------
-
+if SaveOption == 1
+    
 Na = 12;
 % Initialisation
 ExtAri = zeros(Na*size(Cn0,1),2);            % Extrémités arêtes
 Cai = [];                                   % Connectivités arêtes
-CoorV = zeros(size(Cn0,1),size(CoorN,2));    % Coordonnées des volumes
 
 Tab = [1 2; 2 3; 3 4; 4 1; 5 6; 6 7; 7 8; 8 5; 1 5; 2 6; 3 7; 4 8];
 for k = 1:1:Na, ExtAri(k:Na:Na*size(Cn,1),:) = Cn(:,Tab(k,:)); end
@@ -528,18 +532,29 @@ for k = 1:1:size(TabCoorA,3)
 end
 CoorA = sum(TabCoorA,3)/size(TabCoorA,3);
 
-                  
-% Signes des arêtes et coordonnées des volumes
-TabCoorV = zeros(size(Cn,1),size(CoorN,2),size(Cn,2)); 
-for k = 1:1:size(TabCoorV,3)
-    TabCoorV(:,:,k) = CoorN(Cn(:,k),:);
-end
-CoorV = sum(TabCoorV,3)/size(TabCoorV,3);
+                 
 %
 for ie = 1:size(Ca,1),
     for ia = 1:1:size(Ca,2), if ExtAr(Ca(ie,ia),1) ~= Cn(ie,Tab(ia,1)), Ca(ie,ia) = -Ca(ie,ia); end, end
     %CoorV(ie,:) = sum(CoorN(Cn(ie,:),:),1)/size(Cn,2);
 end
+else
+    [Ca,CoorA,ExtAr] = deal([]);
+end
+
+% Coordonnées des volumes
+% TabCoorV = zeros(size(Cn,1),size(CoorN,2),size(Cn,2)); 
+% for k = 1:1:size(TabCoorV,3)
+%     TabCoorV(:,:,k) = CoorN(Cn(:,k),:);
+% end
+% CoorV = sum(TabCoorV,3)/size(TabCoorV,3);
+
+CoorV = zeros(size(Cn,1),size(CoorN,2));    % Coordonnées des volumes
+[xn,yn,zn] = deal(CoorN(:,1),CoorN(:,2),CoorN(:,3));
+CoorV(:,1) = sum(xn(Cn),2)/size(Cn,2);
+CoorV(:,2) = sum(yn(Cn),2)/size(Cn,2);
+CoorV(:,3) = sum(zn(Cn),2)/size(Cn,2);
+clear xn yn zn
 
 % Recherche des facettes
 % ----------------------
@@ -560,9 +575,6 @@ Tab = [1 2 3 4; 5 6 7 8; 2 3 7 6; 1 4 8 5; 1 5 6 2; 4 8 7 3];
 for k = 1:1:Nf, ExtFai(k:Nf:Nf*size(Cn,1),:) = Cn(:,Tab(k,:)); end
 
 %Tab = [1 2 3 4; 8 7 6 5; 9 5 10 1; 10 6 11 2; 11 7 12 3; 12 8 9 4];
-Tab = [1 2 3 4; 5 6 7 8; 2 11 6 10; 4 12 8 9; 9 5 10 1; 12 7 11 3];
-
-for k = 1:1:Nf, ExtFaAri(k:Nf:Nf*size(Cn,1),:) = abs(Ca(:,Tab(k,:))); end
 
 for k = 1:1:Nf, Cfi = [Cfi, Nf*(1:size(Cn,1))'-(Nf-k)]; end
 
@@ -574,6 +586,11 @@ Cf = int32(Cf);
 if size(Cf,2) == 1, Cf = Cf'; end
 
 if SaveOption == 1
+
+Tab = [1 2 3 4; 5 6 7 8; 2 11 6 10; 4 12 8 9; 9 5 10 1; 12 7 11 3];
+
+for k = 1:1:Nf, ExtFaAri(k:Nf:Nf*size(Cn,1),:) = abs(Ca(:,Tab(k,:))); end
+
 
 [ExtFaAr,I,J] = unique(sort(ExtFaAri,2),'rows');
 ExtFaAr = ExtFaAri(I,:);
@@ -676,7 +693,7 @@ end
 %%
 %%
 if nargin <= 11
-    if ~isempty(yv)
+    if ~isempty(yv) 
         if isempty(NumSD) || length(NumSD) == 1, Mesh.Nsd(:) = 2; else, Mesh.Nsd(:) = max(NumSD)+1; end
         
         %Mesh.Nsd(:) = 2;
@@ -691,7 +708,7 @@ if nargin <= 11
         %     in{k} = inpolygon(xf,yf,xv(k,:),yv(k,:));
         % end
         %tic
-        if ~isempty(yv) && npz==2,
+        if ~isempty(yv) && OptMesh == 1 %npz==2
             [xv,yv]=deal(single(xv),single(yv));
             Xg = sum(xv,2)/size(xv,2);
             Yg = sum(yv,2)/size(yv,2);
@@ -713,6 +730,8 @@ if nargin <= 11
             end
 
         end
+        %
+        if sum(abs(diff(Mesh.Nsd))) == 0, Mesh.Nsd(:) = 1; end
 %toc
         
         % for k = 1:size(xv,1)
@@ -730,16 +749,20 @@ end
 Pf = zeros(length(Mesh.NsdF),1);%zeros(length(Mesh.CoorF),1);
 NsdF = zeros(length(Mesh.NsdF),1);%zeros(length(Mesh.CoorF),1);
 %tic
-for ie = 1:size(Mesh.Cf,1)
-    for k = 1:size(Mesh.Cf,2)
-        if Pf(Mesh.Cf(ie,k)) == 0 
-            Pf(Mesh.Cf(ie,k)) = 1;
-            NsdF(Mesh.Cf(ie,k)) = Mesh.Nsd(ie);
-        else
-            Pf(Mesh.Cf(ie,k)) = Pf(Mesh.Cf(ie,k))+1;
-            NsdF(Mesh.Cf(ie,k)) = 0;
+if SaveOption == 1
+    for ie = 1:size(Mesh.Cf,1)
+        for k = 1:size(Mesh.Cf,2)
+            if Pf(Mesh.Cf(ie,k)) == 0 
+                Pf(Mesh.Cf(ie,k)) = 1;
+                NsdF(Mesh.Cf(ie,k)) = Mesh.Nsd(ie);
+            else
+                Pf(Mesh.Cf(ie,k)) = Pf(Mesh.Cf(ie,k))+1;
+                NsdF(Mesh.Cf(ie,k)) = 0;
+            end
         end
     end
+else
+    Pf = ones(length(Mesh.NsdF),1);
 end
 %toc
 
