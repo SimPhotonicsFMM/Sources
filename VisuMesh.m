@@ -164,7 +164,7 @@ for kc = 1:length(Mesh0)
 
     TabPf = 1:size(Mesh.ExtFa,1);
 
-    for ki = 1:length(NumSD),
+    for ki = 1:length(NumSD)
         k = NumSD(ki);
 
         Pe = Mesh.Nsd == k;
