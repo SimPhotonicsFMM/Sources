@@ -199,6 +199,37 @@ classdef utilMesh
             end
         
         end
+        % New number of subdomain
+        function Mesh = SetNumSD(obj,Num0,Num1)
+
+            Mesh0 = [obj.mesh];
+            Mesh = Mesh0;
+            if nargin == 2
+                Pe = Num0;
+                kd = max(Mesh0.Nsd)+1;
+                Mesh.Nsd(Pe) = kd;
+                Pf = unique(Mesh.Cf(Pe,:));
+                Mesh.NsdF(Pf) = kd;
+                Mesh.TabNsdF{kd}(1:length(Mesh.CoorF),1) = 0;
+                Mesh.TabNsdF{kd}(Pf) = kd;
+            else
+            for k = 1:length(Mesh0)
+                for kd = 1:length(Num0)
+                    Pe = Mesh0(k).Nsd == Num0(kd);
+                    Mesh(k).Nsd(Pe) = Num1(kd);
+                end
+                %
+                %Mesh.TabNsdF = cell(max(Mesh.Nsd),1);
+                for kd = Num1
+                    Pe = Mesh(k).Nsd == kd;
+                    Pf = unique(Mesh(k).Cf(Pe,:));
+                    Mesh(k).NsdF(Pf) = kd;
+                    Mesh(k).TabNsdF{kd}(1:length(Mesh(k).CoorF),1) = 0;
+                    Mesh(k).TabNsdF{kd}(Pf) = kd;
+                end
+            end
+            end
+        end
 
     end
 end
