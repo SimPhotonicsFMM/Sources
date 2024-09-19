@@ -594,6 +594,7 @@ else
         M = A * B;
     end
     clear A
+    if issparse(M), M = full(M); end
     [V,D] = eig(M,'nobalance','vector');
     clear M
     Vp = sqrt(D); %sqrt(diag(D));
