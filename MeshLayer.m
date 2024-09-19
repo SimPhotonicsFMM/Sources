@@ -137,7 +137,7 @@ if isstruct(varargin{1,1})
                     [xv{k},yv{k}] = sf2d(Geom1);
                     if isempty(l1{k}) && isempty(l2{k})
                         if (size(Geom1.mn,2) == 4 || any(Geom1.Angle ~= 0))...
-                                || (max2(util(npx))>2 || max2(util(npy))>2)
+                                || (max2(util(npx(k)))>2 || max2(util(npy(k)))>2)
                             l1{k} = max(xv{k}(:))-min(xv{k}(:));
                             l2{k} = max(yv{k}(:))-min(yv{k}(:));
                             %
