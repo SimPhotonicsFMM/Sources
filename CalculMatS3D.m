@@ -117,13 +117,15 @@ if Coef == -1
     %
     Pvp = find(abs(real(Vp))<1e-6); % troncature aux ordres propagatifs
     Pd = Pvp(:).';
+    if ~isreal(Phys.Kx) && abs(imag(Phys.Kx))>0, Pd = 1:length(Vp); end
     %
     n = size(MatSb{1},1)/2;
 
     if Data.ChampInc == -1
 
         if sum(Data.Sym) ~= 4
-            Pdi = find(abs(abs(Vp)-abs(Data.nb*Phys.K0*cos(Data.Theta0)))<Phys.K0/1e6)';
+            %Pdi = find(abs(abs(Vp)-abs(Data.nb*Phys.K0*cos(Data.Theta0)))<Phys.K0/1e6)';
+            Pdi = find(abs(abs(Vp)-abs(sqrt(Data.nb^2*Phys.K0^2-Phys.Kx^2)))<Phys.K0/1e6)';
         else
             Pdi = [(length(mx)-1)/2+1+length(mx) (length(mx)-1)/2+1];
         end
@@ -203,11 +205,13 @@ elseif Coef == +1
     %% 
     Pvp = find(abs(real(Vp))<1e-6); % troncature aux ordres propagatifs
     Pu = Pvp.';
+    if ~isreal(Phys.Kx) && abs(imag(Phys.Kx))>0, Pu = 1:length(Vp); end
 
     n = size(MatSh{1},1)/2;
     if Data.ChampInc == +1
         if sum(Data.Sym) ~= 4
-            Pui = find(abs(abs(Vp)-abs(Data.nh*Phys.K0*cos(Data.Theta0)))<Phys.K0/1e6)'+n;
+            %Pui = find(abs(abs(Vp)-abs(Data.nh*Phys.K0*cos(Data.Theta0)))<Phys.K0/1e6)'+n;
+            Pui = find(abs(abs(Vp)-abs(sqrt(Data.nh^2*Phys.K0^2-Phys.Kx^2)))<Phys.K0/1e6)'+n;
 
         else
             Pui = [(length(mx)-1)/2+1+length(mx)+n (length(mx)-1)/2+1+n];
