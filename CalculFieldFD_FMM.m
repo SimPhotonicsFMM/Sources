@@ -85,6 +85,9 @@ end
 if sum(Data(1).Sym) ~= 4
     error('For Field Calculation, symmetry is not considered');
 end
+if ~isfield(Data(1),'Field') || Data(1).Field == 0,
+    error('For Field Calculation, set parameter ''Field'' equal to 1 ' )
+end
 %
 % Numéro Couche calcul FD
 if isfield(Data,'Nsub'), Nsub = cell2mat({Data.Nsub}); k0 = find(Nsub~=0); end
@@ -110,7 +113,7 @@ if min(z(:))<min(Mesh(1).CoorN(:,end))
     end
     %
     Data0 = SetData(Data(1),'Indice',Data(1).nb,'Nsub',0);
-    Phys0 = CaractMat(Mesh0,Data0);
+    Phys0 = CaractMat(Mesh0,Data0,Phys(1).Kx,Phys(1).Ky);
     S0 = CalculMatS(Data0,Mesh0,Phys0); % milieu bas 
     if isfield(Mesh(1),'xv'), Mesh0.xv = []; Mesh0.yv = []; end
     Mesh = [Mesh0 Mesh];
@@ -136,7 +139,7 @@ if max(z(:))>max(Mesh(end).CoorN(:,end))
     end
     %
     Data0 = SetData(Data(1),'Indice',Data(1).nh,'Nsub',0);
-    Phys0 = CaractMat(Mesh0,Data0);
+    Phys0 = CaractMat(Mesh0,Data0,Phys(1).Kx,Phys(1).Ky);
     S0 = CalculMatS(Data0,Mesh0,Phys0); % milieu haut 
     if isfield(Mesh(1),'xv'), Mesh0.xv = []; Mesh0.yv = []; end
     Mesh = [Mesh Mesh0];
