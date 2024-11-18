@@ -52,10 +52,15 @@ function [r,t,CoefD,R,T,E,H] = CalculCoefRT(Sb,MatS,Sh,NumLayer)
 % CoefD = MatD{1};
 % if isempty(CoefD), CoefD = MatD{2}; end
 
-if nargin == 3, NumLayer = []; end % FMM calculation
+if nargin <= 3, NumLayer = []; end % FMM calculation
 
 if isempty(NumLayer)
-    CoefD = CalculCoefD(Sb,MatS,Sh,NumLayer);
+    if nargin == 2
+        Sh = MatS;
+        CoefD = CalculCoefD(Sb,[],Sh,NumLayer);
+    else
+        CoefD = CalculCoefD(Sb,MatS,Sh,NumLayer);
+    end
 else
     Sb1 = Sb; for k = 1:NumLayer(1)-1, Sb1 = ProdMatS(Sb1,MatS(k,:)); end
     if NumLayer(end) < size(MatS,1)
@@ -118,10 +123,8 @@ end
 function [CoefD,E,H] = CalculCoefD(Sb,MatS,Sh,NumLayer)
 
 if isempty(NumLayer)
-    if nargin == 2 
-        S = Sb;
-        Sh = MatS;
-        MatD = ProdMatS(S,Sh);
+    if isempty(MatS) 
+        MatD = ProdMatS(Sb,Sh);
     else    
         %S = ProdMatS(Sb,ProdMatS(MatS));
         S = Sb; for k=1:size(MatS,1), S = ProdMatS(S,MatS(k,:)); end
@@ -347,8 +350,8 @@ if size(MatS,1) == 1
             Mat = blkdiag(-Cb,-Ch); Mat(n+1:end,1:n) = Id; Mat(1:n,n+1:end) = Id;
             E = Mat\[Fb;Fh];
           else
-            %InvB1 = cell(Np,1);
-            %F1 = cell(Np,1);
+            InvB1 = cell(Np,1);
+            F1 = cell(Np,1);
             %B = MatS{1,2};
 %            if iscell(MatS{1,2})
                 C = 2*Id + dz^2*M;
@@ -361,14 +364,18 @@ if size(MatS,1) == 1
 
             B = C/2+dz*(MatS{1,1}*inv(Sb12)); %C/2+dz*(A*inv(Sb12)); %Cb;
             F = Fb; %F1{1} = Fb;
+            F1{1} = F;
             %tic, 
             B = inv(B); %tB = toc;
             %disp(tB) %InvB1{1} = inv(B1);
+            InvB1{1} = B;
             %
             for k = 2:Np
                 F = B*F; %F1{k} = InvB1{k-1}*F1{k-1};
                 B = C - B; %B1 = C - InvB1{k-1};
                 B = inv(B); %InvB1{k} = inv(B1);
+                InvB1{k} = B;
+                F1{k} = F;
             end
             %
             %Mat = blkdiag(-B1,-Ch); Mat(n+1:end,1:n) = Id; Mat(1:n,n+1:end) = Id;
@@ -378,13 +385,15 @@ if size(MatS,1) == 1
             %xk{Np} = TabE(1:n,:); % E(Np-1)
             %xk{Np+1} = TabE(n+1:end,:); % Eh
             Fh1 = Fh + B*F; %Fh + InvB*F
-            B = (C/2-dz*(MatS{1,1}*Sh21))-B;%(C/2-dz*(A*Sh21))-InvB; %Ch-InvB1; %Ch-InvB1{Np};
+            Ch = -dz*(MatS{1,1}*Sh21);
+            %B = (C/2+Ch)-B;%(C/2-dz*(A*Sh21))-InvB; %Ch-InvB1; %Ch-InvB1{Np};
             %rcond(B)
-            xk{Np+1} = -B\Fh1;%-B1\(Fh+InvB1{Np}*F1{Np});
-            B = (C/2-dz*(MatS{1,1}*Sh21))-B;
+            xk{Np+1} = -((C/2+Ch)-B)\Fh1;%-B1\(Fh+InvB1{Np}*F1{Np});
+            %xk{Np} = Fh+(C/2+Ch)*xk{Np+1};
+            %B = (C/2-dz*(MatS{1,1}*Sh21))-B;
             xk{Np} = -B*(F - xk{Np+1}); %-InvB1{Np}*(F1{Np}-xk{Np+1});
-            for k = Np-1:-1:1, xk{k} = C*xk{k+1}-xk{k+2}; end
-            %for k = Np-1:-1:1, xk{k} = -InvB1{k}*(F1{k} - xk{k+1}); end
+            %for k = Np-1:-1:1, xk{k} = C*xk{k+1}-xk{k+2}; end
+            for k = Np-1:-1:1, xk{k} = -InvB1{k}*(F1{k} - xk{k+1}); end
                 %
             E = nan(n*(Np+1),size(Ib,2));
             for k = 1:Np+1, E((1:n)+n*(k-1),:) = xk{k}; end
@@ -455,12 +464,12 @@ end
         H(n*Np+1:n*(Np+1),:) = Sh21*E(n*Np+1:n*(Np+1),:)+ Sh22*Ih(Pui,:);
     end
     %
-    if ~isfield(Data,'POD') && size(MatS,1) == 1
+    if size(MatS,1) == 1 && isfield(Data,'Field') && Data.Field == 1  %~isfield(Data,'POD') && size(MatS,1) == 1
         %warning(' A faire cas plusieurs couches')
-        % InvA = inv(MatS{1,1});%inv(A);
-        % for k = 1:Np-1
-        %     H((1:n)+n*k,:) = (InvA*(E((1:n)+n*(k+1),:)-E((1:n)+n*(k-1),:)))/(2*dz);
-        % end
+        InvA = inv(MatS{1,1});%inv(A);
+        for k = 1:Np-1
+            H((1:n)+n*k,:) = InvA*(E((1:n)+n*(k+1),:)-E((1:n)+n*(k-1),:))/(2*dz);
+        end
     elseif size(MatS,1) > 1
         % Magnetic field calculation
         yk = cell(Np+1,1);
