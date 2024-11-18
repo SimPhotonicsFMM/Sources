@@ -19,7 +19,15 @@ function VisuFieldFMM(Vect,X,Y,Z)
 % Author : Mondher Besbes (LCF / CNRS / IOGS)
 
 
-if nargin == 4
+%
+if nargin == 4 || nargin == 2
+    if isstruct(X)
+        geom = X;
+        [X,Y,Z] = deal(geom.x,geom.y,geom.z);
+    elseif size(X,2) == 3
+        [X,Y,Z] = deal(X(:,1),X(:,2),X(:,3));
+    end
+    %
     if isvector(X) && isvector(Y) && isvector(Z)
         [x,y,z] = ndgrid(X,Y,Z);
     else
