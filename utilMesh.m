@@ -76,6 +76,8 @@ classdef utilMesh
             Mesh1 = Mesh;
             %
             Mesh1.Nsd = Mesh.Nsd(Pe);
+            Mesh1.Nsd = Mesh1.Nsd-min(Mesh1.Nsd)+1;
+            NumSD = unique(Mesh1.Nsd);
             %if size(Mesh.CoorN,2) == 2, Mesh1.Surf = Mesh.Surf(Pe); end
             %
             Pn = unique(Mesh.Cn(Pe,:));
@@ -119,6 +121,11 @@ classdef utilMesh
                 %Mesh1.Surf = Mesh.Surf(Pf);
                 Mesh1.TabP = Mesh.TabP(Pf);
                 %Mesh1.VectNorm = Mesh.VectNorm(Pf,:);
+                Mesh1.TabNsdF = {};
+                for k = 1:length(NumSD) 
+                    Tab = zeros(size(Mesh.TabNsdF{NumSD(k)}));
+                    Mesh1.TabNsdF{1,k} = Tab(Pf)+k; 
+                end 
             end
             %
                 
