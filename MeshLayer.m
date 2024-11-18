@@ -83,7 +83,13 @@ if isstruct(varargin{1,1})
         if isfield(Geom,'npx')
             [npx,npy] = deal(Geom.npx,Geom.npy);
         else
-            [npx,npy] = deal(2);
+            if isfield(Geom,'mn') && iscell(Geom.mn)
+                [npx,npy] = deal(cell(1,length(Geom.mn)));
+                [npx{:}] = deal(2);
+                [npy{:}] = deal(2);
+            else
+                [npx,npy] = deal(2);
+            end
         end
     end
     %
