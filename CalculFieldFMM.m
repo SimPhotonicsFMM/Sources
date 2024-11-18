@@ -105,7 +105,7 @@ if min(z(:))<min(Mesh(1).CoorN(:,end))
     end
     %
     Data0 = SetData(Data(1),'Indice',Data(1).nb);
-    Phys0 = CaractMat(Mesh0,Data0);
+    Phys0 = CaractMat(Mesh0,Data0,Phys(1).Kx,Phys(1).Ky);
     S0 = CalculMatS(Data0,Mesh0,Phys0); % milieu bas 
     if isfield(Mesh(1),'xv'), Mesh0.xv = []; Mesh0.yv = []; end
     Mesh = [Mesh0 Mesh];
@@ -128,7 +128,7 @@ if max(z(:))>max(Mesh(end).CoorN(:,end))
     end
     %
     Data0 = SetData(Data(1),'Indice',Data(1).nh);
-    Phys0 = CaractMat(Mesh0,Data0);
+    Phys0 = CaractMat(Mesh0,Data0,Phys(1).Kx,Phys(1).Ky);
     S0 = CalculMatS(Data0,Mesh0,Phys0); % milieu haut 
     if isfield(Mesh(1),'xv'), Mesh0.xv = []; Mesh0.yv = []; end
     Mesh = [Mesh Mesh0];
