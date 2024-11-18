@@ -143,7 +143,7 @@ if nargin >= 6
             s.(FieldData{P}) = v{k};
         else % nouveau champ
             s.(f{k}) = v{k};
-            warning(['Nouvelle donnée : ', f{k}]); 
+            %warning(['Nouvelle donnée : ', f{k}]); 
         end
     end
 end
@@ -221,17 +221,18 @@ end
 
 %
 if ~isempty(s.Num), NbOrder = length(s.Num); else, NbOrder = 1; end
+if isfield(s,'Field') && ~isempty(s.Field), for k=1:length(Data), Data(k).Field = s.Field; end, end
  
 
 NumLayer = [];
 if isfield(s,'Nsub') && ~isempty(s.Nsub)
     if numel(find(s.Nsub~=0))>1 || (numel(find(s.Nsub~=0))==1 && Nper>1) 
-        error('FD_FMM is only used for one layer'); 
+        %warning('FD_FMM is only used for one layer'); 
     end
     for k=1:length(Data) 
         Data(k).Nsub = s.Nsub(end-k+1); 
         if Data(k).Nsub ~= 0, 
-            NumLayer = k;
+            NumLayer = [NumLayer k];
             if isfield(s,'POD'), Data(k).POD = s.POD; end
         end
     end 
@@ -256,6 +257,7 @@ if numel(lambda) == 1 && numel(theta) == 1
     Data = SetData(Data,'Lambda0',lambda,'Theta0',theta);
     Data = InterpIndex(Data); % Mise à jour des indices, nb et nh
     Phys = CaractMat(Mesh,Data);
+    if isfield(s,'Kx'), Phys = CaractMat(Mesh,Data,s.Kx,0); end
     Sb = CalculMatS(Data,Mesh,Phys,-1); % milieu bas
     Sh = CalculMatS(Data,Mesh,Phys,+1); % milieu haut
     MatS = CalculMatS(Data,Mesh,Phys); % Matrices S des différentes couches
@@ -263,7 +265,22 @@ if numel(lambda) == 1 && numel(theta) == 1
     if isempty(Phys(1).PmlX) && isempty(Phys(1).PmlY)
         if ~isempty(NumLayer)
             [r,t,CoefD,R,T,E,H] = CalculCoefRT(Sb,MatS0,Sh,NumLayer);
-            MatS{NumLayer,6} = [E H]; 
+            %n = length(MatS{1,1});
+            if length(NumLayer) == 1
+                MatS{NumLayer,6} = [E H];
+            else
+                P = 0;
+                for k = 1:length(NumLayer)
+                    Nsub = Data(NumLayer(k)).Nsub;
+                    E0 = []; H0 = [];
+                    for ks = 1:Nsub+1
+                        E0 = [E0 ; E{ks+P}]; 
+                        H0 = [H0 ; H{ks+P}]; 
+                    end
+                    MatS{NumLayer(k),6} = [E0 H0];
+                    P = P + Nsub;
+                end
+            end
         else
             [r,t,CoefD,R,T] = CalculCoefRT(Sb,MatS0,Sh);
         end
