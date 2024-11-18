@@ -197,9 +197,16 @@ for kc = 1:length(Mesh0)
 %
 if ~(isfield(Mesh,'Pe') && ~isempty(Mesh.Pe)), 
 if isfield(Mesh,'xv') && ~isempty(Mesh.xv)
-    for k = 1:size(Mesh.xv,1)
-    plot3(Mesh.xv(k,:),Mesh.yv(k,:),max(Mesh.CoorN(:,3))*ones(size(Mesh.xv(k,:))),'k','LineWidth',1);
-    plot3(Mesh.xv(k,:),Mesh.yv(k,:),min(Mesh.CoorN(:,3))*ones(size(Mesh.xv(k,:))),'k','LineWidth',1);
+    if isfield(Mesh,'yv') && ~isempty(Mesh.yv)
+        for k = 1:size(Mesh.xv,1)
+            plot3(Mesh.xv(k,:),Mesh.yv(k,:),max(Mesh.CoorN(:,3))*ones(size(Mesh.xv(k,:))),'k','LineWidth',1);
+            plot3(Mesh.xv(k,:),Mesh.yv(k,:),min(Mesh.CoorN(:,3))*ones(size(Mesh.xv(k,:))),'k','LineWidth',1);
+        end
+    else
+        for k = 1:size(Mesh.xv,1)
+            plot3(Mesh.xv(k,:),max(Mesh.CoorN(:,2))*ones(size(Mesh.xv(k,:))),Mesh.zv(k,:),'k','LineWidth',1);
+            plot3(Mesh.xv(k,:),min(Mesh.CoorN(:,2))*ones(size(Mesh.xv(k,:))),Mesh.zv(k,:),'k','LineWidth',1);
+        end
     end
 end
 end
