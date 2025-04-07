@@ -189,7 +189,8 @@ if isstruct(varargin{1,1})
     end
     return
 else
-    SaveOption = 1;
+    if isempty(SaveOption), SaveOption = 1; end
+    if isempty(OptMesh), OptMesh = 1; end
 end
 %
 [a1,l1] = deal(varargin{1,1},varargin{1,2});
@@ -288,7 +289,7 @@ if l1 == 0, l1 = []; end
 if length(npx) == 1
 if npx > 3
     dx = min([l1(:);a1-sum(l1)])/(npx);
-    npx = ceil([a1/2-sum(l1)/2; l1(:); a1/2-sum(l1)/2]/dx);
+    if ~isempty(l1), npx = ceil([a1/2-sum(l1)/2; l1(:); a1/2-sum(l1)/2]/dx); end
 else
     npx = repmat(npx,length(l1)+2,1);
 end
@@ -786,6 +787,7 @@ d51 = sqrt(sum((Mesh.CoorN(Mesh.Cn(:,5),:)-Mesh.CoorN(Mesh.Cn(:,1),:)).^2,2));
 Mesh.Vol = d21.*d41.*d51;
 
 Mesh = NumFacet(Mesh);
+Mesh = SurfFacet3D(Mesh);
 
 end 
 
@@ -822,9 +824,44 @@ for kn = 1:max(Mesh.Nsd),
 
 end
 
+for kn = 1:max(Mesh.Nsd)
+    Pf = find(Mesh.TabNsdF{kn} ~= 0);
+    for k = 1:length(Pf)
+        ie = find(sum(ismember(Mesh.Cf,Pf(k)),2));
+        if length(ie) == 2
+            if Mesh.Nsd(ie(1)) == Mesh.Nsd(ie(2)), Mesh.TabNsdF{kn}(Pf(k)) = 0; end
+        end
+    end
+end
+
 Mesh1 = Mesh;
 
 end
+
+
+%% ------------------------------------------------------------------------%
+
+function Mesh = SurfFacet3D(Mesh)
+
+% calcul des surfaces des facettes triangulaires/quadrangles et vecteur normal
+Nf = length(Mesh.ExtFa);
+CoorMoy = mean(Mesh.CoorN);
+
+v12 = Mesh.CoorN(Mesh.ExtFa(:,2),:)-Mesh.CoorN(Mesh.ExtFa(:,1),:);
+v13 = Mesh.CoorN(Mesh.ExtFa(:,3),:)-Mesh.CoorN(Mesh.ExtFa(:,1),:);
+ProdVect = cross(v12,v13);
+Mesh.Surf = 0.5*sqrt(sum(ProdVect.^2,2));
+%
+if size(Mesh.ExtFa,2) == 4
+    v12 = Mesh.CoorN(Mesh.ExtFa(:,4),:)-Mesh.CoorN(Mesh.ExtFa(:,1),:);
+    ProdVect = cross(v12,v13);
+    Mesh.Surf = Mesh.Surf + 0.5*sqrt(sum(ProdVect.^2,2));
+end
+
+Mesh.VectNorm = repmat(sign(sum((Mesh.CoorF(:,:)-repmat(CoorMoy,Nf,1)).*ProdVect,2)),1,3).*ProdVect./repmat(sqrt(sum(ProdVect.^2,2)),1,3);
+
+end
+
 
 %% ------------------------------------------------------------------------%
 function [Ca,ExtAr,CoorA,CoorF] = RechercheArete(Cn,CoorN)
