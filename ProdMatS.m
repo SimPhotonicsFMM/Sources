@@ -104,17 +104,26 @@ MatS1 = MatS1{1};
 MatS2 = MatS2{1};
 
 %
-if nnz(MatS1)/size(MatS1,1) < 10 && nnz(MatS2)/size(MatS2,1) <10
+if size(MatS1,1)>=4 && nnz(MatS1)/size(MatS1,1) < 10 && nnz(MatS2)/size(MatS2,1) <10
     
 %MatS1 = sparse(MatS1);
 %MatS2 = sparse(MatS2);
 %
 
 %tic
+% MatS3{1,1} = [sparse(n23,n11), MatS2(1:n23,n21+1:end); MatS1(n13+1:end,1:n11), sparse(n14,n22)] + ...
+%         ([MatS2(1:n23,1:n21) , sparse(n23,n12); sparse(n14,n21), MatS1(n13+1:end,n11+1:end)]*...
+%          ([speye(n13,n21) , -MatS1(1:n13,n11+1:end); -MatS2(n23+1:end,1:n21), speye(n24,n12)]\...
+%          [MatS1(1:n13,1:n11) , sparse(n13,n22); sparse(n24,n11), MatS2(n23+1:end,n21+1:end)]));
+
+MatR = [speye(n13,n21) , -MatS1(1:n13,n11+1:end); -MatS2(n23+1:end,1:n21), speye(n24,n12)];
+vm = max(abs(MatR),[],1);
+Mvm = spdiags(1./vm(:),0,length(vm),length(vm));
+SdMembreR = [MatS1(1:n13,1:n11) , sparse(n13,n22); sparse(n24,n11), MatS2(n23+1:end,n21+1:end)];
 MatS3{1,1} = [sparse(n23,n11), MatS2(1:n23,n21+1:end); MatS1(n13+1:end,1:n11), sparse(n14,n22)] + ...
         ([MatS2(1:n23,1:n21) , sparse(n23,n12); sparse(n14,n21), MatS1(n13+1:end,n11+1:end)]*...
-         ([speye(n13,n21) , -MatS1(1:n13,n11+1:end); -MatS2(n23+1:end,1:n21), speye(n24,n12)]\...
-         [MatS1(1:n13,1:n11) , sparse(n13,n22); sparse(n24,n11), MatS2(n23+1:end,n21+1:end)]));
+         (((MatR*Mvm)\SdMembreR)./vm(:)));
+
 %toc
 %MatS3{1,1} = full(MatS3{1,1});
 
