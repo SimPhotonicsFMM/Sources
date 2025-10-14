@@ -61,24 +61,48 @@ if nargin < 3, angle0 = zeros(size(n0,1),1); else, angle0 = varargin{1,3}; end
 
 
 u = linspace(0,2*pi,Np);
+[x0,y0] = deal(nan(size(n0,1),5));  % quadrangle
+%
 if size(n0,2) == 4
-    [x0,y0] = deal(nan(size(n0,1),length(u)));
-else
-    [x0,y0] = deal(nan(size(n0,1),5));  % quadrangle
+        [x0,y0] = deal(nan(size(n0,1),length(u)));
 end
 
 %
 for k = 1:size(n0,1)
     %
     [n,a,angle,Dep] = deal(n0(k,:),a0(k,:),angle0(k),Dep0(k,:));
-    if length(n) == 4
-        a1 = [1 1];
-        raux = abs(1 / a1(1) .* abs(cos(n(1) * u / 4))) .^ n(3) + ...
-               abs(1 / a1(2) .* abs(sin(n(1) * u / 4))) .^ n(4);
-        %
-        r = abs(raux) .^ (- 1 / n(2));
-        x = r .* cos(u);
-        y = r .* sin(u);
+    if size(x0,2) == length(u) %length(n) == 4 
+        if all(n(2:end) == 0), 
+            if mod(Np,2) == 0
+                Nx = floor(a(1)/(a(1)+a(2))*Np/2); Ny = Np/2-Nx;
+            else
+                Nx = floor(a(1)/(a(1)+a(2))*Np/2); Ny = floor(Np/2)-Nx;               
+            end
+            x = linspace(-a(1),a(1),Nx+1);
+            x = [x(1:end-1) linspace(a(1),a(1),Ny+1)];
+            x = [x(1:end-1) linspace(a(1),-a(1),Nx+1)];
+            if mod(Np,2) == 0
+                x = [x(1:end-1) linspace(-a(1),-a(1),Ny)];
+            else
+                x = [x(1:end-1) linspace(-a(1),-a(1),Ny+1)];
+            end
+            y = linspace(-a(2),-a(2),Nx+1);
+            y = [y(1:end-1) linspace(-a(2),a(2),Ny+1)];
+            y = [y(1:end-1) linspace(a(2),a(2),Nx+1)];
+            if mod(Np,2) == 0
+                y = [y(1:end-1) linspace(a(2),-a(2),Ny)];
+            else
+                y = [y(1:end-1) linspace(a(2),-a(2),Ny+1)];
+            end
+        else
+            a1 = [1 1];
+            raux = abs(1 / a1(1) .* abs(cos(n(1) * u / 4))) .^ n(3) + ...
+                   abs(1 / a1(2) .* abs(sin(n(1) * u / 4))) .^ n(4);
+            %
+            r = abs(raux) .^ (- 1 / n(2));
+            x = r .* cos(u);
+            y = r .* sin(u);
+        end
     else
         x = [-a(1)  a(1) a(1) -a(1) -a(1)];
         y = [-a(2)  -a(2) a(2) a(2) -a(2)];
