@@ -74,7 +74,8 @@ if isstruct(varargin{1,1})
     Geom = FlipUD(util(Geom));
     if isfield(Geom,'SaveOption'), SaveOption = Geom.SaveOption; else SaveOption = 1; end
     if isfield(Geom,'OptimMesh'), OptMesh = Geom.OptimMesh; else, OptMesh = 1; end
-    %
+    if isfield(Geom,'zmin'), zmin = Geom.zmin; else, zmin = 0; end
+        %
     if length(varargin) == 2 && varargin{1,2} == 1, Geom = FlipUD(util(Geom)); end
     %    
     if length(varargin) >= 3
@@ -184,7 +185,13 @@ if isstruct(varargin{1,1})
             Mesh = MeshLayer(a1,l1,a2,l2,h,npx,npy,npz,xv,yv,NumSD);
 
         else
-            Mesh = MeshLayer(a1,l1,a2,l2,h,npx,npy,npz);
+            if ~isempty(Geom) && isfield(Geom,'xv') && isfield(Geom,'yv')
+                if npz == 2, npz = 3; end
+                Mesh = MeshLayer(a1,[],a2,[],Geom.hc,npx,npy,npz,...
+                        Geom.xv,Geom.yv,Geom.NumSD);
+            else
+                Mesh = MeshLayer(a1,l1,a2,l2,h,npx,npy,npz);
+            end
         end
     end
     return
@@ -787,7 +794,7 @@ d51 = sqrt(sum((Mesh.CoorN(Mesh.Cn(:,5),:)-Mesh.CoorN(Mesh.Cn(:,1),:)).^2,2));
 Mesh.Vol = d21.*d41.*d51;
 
 Mesh = NumFacet(Mesh);
-Mesh = SurfFacet3D(Mesh);
+if SaveOption == 1, Mesh = SurfFacet3D(Mesh); end
 
 end 
 
