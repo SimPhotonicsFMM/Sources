@@ -102,38 +102,54 @@ for k = 1:length(f)
 end
 %
 if nargin == 0, return; end
-% 0D grating
-if ~isfield(Geom,'dx') && ~isfield(Geom,'dy'), [Geom.dx,Geom.dy] = deal(max(Geom.hc)); end
+if isfield(Geom,'hc')
+    % 0D grating
+    if ~isfield(Geom,'dx') && ~isfield(Geom,'dy'), [Geom.dx,Geom.dy] = deal(max(Geom.hc)); end
+end
 % 1D grating
 if isfield(Geom,'dx') && ~isfield(Geom,'dy'), Geom.dy = Geom.dx; end
 %
 if isfield(Geom,'ab')
     if iscell(Geom.ab)
+        if ~isfield(Geom,'NumSD'), 
+            Geom.NumSD = cell(1,length(Geom.hc));
+            for kc = 1:length(Geom.ab), Geom.NumSD{kc} = ones(1,size(Geom.ab{kc},1)); end
+        end
+        if ~isfield(Geom,'Dep'), 
+            Geom.Dep = cell(1,length(Geom.hc));
+            for kc = 1:length(Geom.ab), Geom.Dep{kc} = zeros(size(Geom.ab{kc})); end
+        end
         for kc = 1:length(Geom.ab)
             if isempty(Geom.ab{kc}), Geom.ab{kc}=[Geom.dx/2 Geom.dy/2]; end
-            P = isinf(Geom.ab{kc}(:,2)) | isnan(Geom.ab{kc}(:,2));
+            P = isinf(Geom.ab{kc}(:,2));% | isnan(Geom.ab{kc}(:,2));
             Geom.ab{kc}(P,2) = Geom.dy/2;
+            P = isinf(Geom.ab{kc}(:,1));% | isnan(Geom.ab{kc}(:,1));
+            Geom.ab{kc}(P,1) = Geom.dx/2;
         end
     else
+        if ~isfield(Geom,'NumSD'), Geom.NumSD = ones(1,size(Geom.ab,1)); end
+        if ~isfield(Geom,'Dep'), Geom.Dep = zeros(size(Geom.ab)); end
         if isempty(Geom.ab), Geom.ab=[Geom.dx/2 Geom.dy/2]; end
-        P = isinf(Geom.ab(:,2)) | isnan(Geom.ab(:,2));
+        P = isinf(Geom.ab(:,2));% | isnan(Geom.ab(:,2));
         Geom.ab(P,2) = Geom.dy/2;
+        P = isinf(Geom.ab(:,1));% | isnan(Geom.ab(:,1));
+        Geom.ab(P,1) = Geom.dx/2;
     end
 end
 %
-if nargout == 2
-    Mesh = MeshLayer(Geom);
+if nargout == 2 
+     Mesh = MeshLayer(Geom);
 end
 % 
-if isfield(Geom,'Plot') && Geom.Plot == 1
+if isfield(Geom,'Plot') && Geom.Plot >= 1
     %
-    c = {'b' 'g' 'r' 'k' 'y' 'c'};
+    figure, hold on
+    %
     if isfield(Geom,'mn')
         % 
-        figure, hold on
         %
-        [xv,yv] = deal([]);
         if iscell(Geom.mn)
+            ht = cumsum(Geom.hc(end:-1:1));
             for kc = 1:length(Geom.mn)
                 n0 = Geom.mn{kc};
                 if size(n0,2) == 1, n0 = [n0 repmat([400 400 400],size(n0,1),1)]; end
@@ -143,27 +159,64 @@ if isfield(Geom,'Plot') && Geom.Plot == 1
                 if isfield(Geom,'Angle'), angle0 = Geom.Angle{kc}; else, angle0 = zeros(size(n0,1),1); end
     
                 if iscell(Np), Np = cell2mat(Np); end
-                [x0,y0] = sf2d(n0, a0, angle0, Dep0, Np);
-                xv = [xv ; x0];
-                yv = [yv ; y0];
+                [xv,yv] = sf2d(n0, a0, angle0, Dep0, Np);
+                PlotGeom(Geom,xv,yv,Geom.NumSD{kc},Dep0,ht(end-kc+1));
             end
             
         else
             [xv,yv] = sf2d(Geom);
+
+            if Geom.Plot == 1
+                patch([-Geom.dx/2 Geom.dx/2 Geom.dx/2 -Geom.dx/2],...
+                      [-Geom.dy/2 -Geom.dy/2 Geom.dy/2 Geom.dy/2],...
+                      max(Geom.NumSD)+1)
+            end
+
+            PlotGeom(Geom,xv,yv,Geom.NumSD,Geom.Dep);
+
         end
         %
-        for k = 1:size(xv,1)
-            PlotCourbe(xv(k,:),yv(k,:),'','','',c{randi(length(c))})
+    elseif isfield(Geom,'xv') && isfield(Geom,'yv')
+        if Geom.Plot == 1
+            patch([-Geom.dx/2 Geom.dx/2 Geom.dx/2 -Geom.dx/2],...
+                  [-Geom.dy/2 -Geom.dy/2 Geom.dy/2 Geom.dy/2],...
+                   max(Geom.NumSD)+1)
         end
-        %
-        axis equal
-        axis([-Geom.dx/2 Geom.dx/2 -Geom.dy/2 Geom.dy/2])
+        PlotGeom(Geom,Geom.xv,Geom.yv,Geom.NumSD,zeros(length(Geom.NumSD),2));   
     end
 end
 %
 
 
-return
+end
+
+%%
+
+function PlotGeom(Geom,xv,yv,NumSD,Dep,z)
+%
+c = {'b' 'g' 'r' 'k' 'y' 'c'};
+if nargin < 6, z = 0; end
+%
+for k = 1:size(xv,1)
+    switch Geom.Plot
+        case 1
+            patch(xv(k,:),yv(k,:),z*ones(size(xv(k,:))),NumSD(k)), cb = colorbar;
+            cb.Ticks = 1:max(NumSD)+1; 
+        case 2
+            numc = min(NumSD(k),6);
+            patch(xv(k,:),yv(k,:),z*ones(size(xv(k,:))),'white','EdgeColor',c{numc}),
+            text(Dep(k,1),Dep(k,2),z,num2str(k),'Color',c{numc}), 
+    end
+end
+
+box on
+set(gcf,'Color','w')
+%
+axis equal
+axis([-Geom.dx/2 Geom.dx/2 -Geom.dy/2 Geom.dy/2])
+
+
+end
 
 
           
