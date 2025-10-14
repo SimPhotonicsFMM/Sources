@@ -123,12 +123,12 @@ if iscell(index)
         end
     end
 end
-lambda = lambda + 10*eps;
+lambda = lambda + 0*eps;
 
 %
 s = struct('Nper',1,'mx',0,'my',0,'Phi0',0,'npx',2,'npy',2,'npz',2,'Num',[],...
-     'dx',lambda(1),'dy',lambda(1),'lix',[],'liy',[],'Sym',[2 2],'SymY',2,...
-     'Nsub',[]);
+     'dx',lambda(1)/3,'dy',lambda(1)/3,'lix',[],'liy',[],'Sym',[2 2],'SymY',2,...
+     'Nsub',[],'Eps',1e-6);
 %
 % Listes des paramètres
 %if nargin == 6, s.Nper = varargin{1}; end
@@ -176,13 +176,8 @@ if isstruct(geom)
         dy = geom.dy;
         geom.dy = dy+geom.Ypml;
     end
-%
+    %
     Mesh = MeshLayer(geom);
-%     if length(geom.hc) == 1
-%         Mesh = MeshLayer(geom,s.npx,s.npy,s.npz);
-%     else
-%         Mesh = MeshLayer(FlipUD(util(geom)),s.npx(end:-1:1),s.npy(end:-1:1),s.npz(end:-1:1));
-%     end
     %
     if isfield(geom,'Xpml')
         Mesh.Nsd(abs(Mesh.CoorV(:,2))>dy/2) = max(Mesh.Nsd)+1;
@@ -196,7 +191,8 @@ else
     if Nb_hc>1 && isempty(s.lix), s.lix = cell(Nb_hc,1); end
     if Nb_hc>1 && isempty(s.liy), s.liy = cell(Nb_hc,1); end
     % Description de la géométrie
-    SaveOption = 0;
+    SaveOption = 1;
+    geom = []; geom.dx = s.dx; geom.dy = s.dy;
     Mesh = MeshLayer(s.dx,s.lix(end:-1:1),s.dy,s.liy(end:-1:1),hc(:)',...
                      s.npx(end:-1:1),s.npy(end:-1:1),s.npz(end:-1:1));
 end
@@ -208,7 +204,7 @@ if isfield(s,'SymY'), s.Sym = [2 s.SymY]; end
 %
 Data = SetData('Lambda0',lambda(1),'Theta0',theta(1),'Phi0',s.Phi0(1),...
        'ChampInc',inc,'mx',s.mx,'my',s.my,'nh',nh,'nb',nb,'Indice',Indice,...
-       'a',[-dx/2 dx/2],'b',[-dy/2 dy/2],'CoefPml',1+1i,'Sym',s.Sym);
+       'a',[-dx/2 dx/2],'b',[-dy/2 dy/2],'CoefPml',1+1i,'Sym',s.Sym,'Eps',s.Eps);
 %
 if Data(1).Sym(2) ~= 2 && Data(1).Phi0 ~= 0
     error('if Phi0 is not equal 0, there is no symmetry in y')
@@ -238,6 +234,8 @@ if isfield(s,'Nsub') && ~isempty(s.Nsub)
     end 
 
 end
+%
+
 
 % Calcul du spectre en fonction de Lambda et Theta
 [Xl,Xa] = ndgrid(lambda,theta);
@@ -253,11 +251,33 @@ else
     end
 end
 %
-if numel(lambda) == 1 && numel(theta) == 1
+% Check if h == lambda/4n
+for kh = 1:length(Mesh)
+    hc = max(Mesh(kh).CoorN(:,end))-min(Mesh(kh).CoorN(:,end));
+    for k = 1:length(lambda)  % Loop lambda
+        Data1 = InterpIndex(Data(kh),lambda(k)); % Mise à jour des indices, nb et nh
+        if isscalar(Data1.Indice) && any(abs(theta) < pi/36)
+            h0 = lambda(k)/(4*Data1.Indice);
+            if abs(hc/h0 - round(hc/h0))<=eps
+                if mod(hc/h0,2) ~= 0
+                    error(['Divide into 2 slices the film of thickness = ' num2str(hc)])
+                end
+            end
+        end
+    end
+end
+
+
+%
+if isscalar(lambda) && isscalar(theta)
     Data = SetData(Data,'Lambda0',lambda,'Theta0',theta);
     Data = InterpIndex(Data); % Mise à jour des indices, nb et nh
+
+    %
     Phys = CaractMat(Mesh,Data);
-    if isfield(s,'Kx'), Phys = CaractMat(Mesh,Data,s.Kx,0); end
+    if isfield(s,'Kx') && ~isfield(s,'Ky'), Phys = CaractMat(Mesh,Data,s.Kx,0); end
+    if ~isfield(s,'Kx') && isfield(s,'Ky'), Phys = CaractMat(Mesh,Data,0,s.Ky); end
+    if isfield(s,'Kx') && isfield(s,'Ky'), Phys = CaractMat(Mesh,Data,s.Kx,s.Ky); end
     Sb = CalculMatS(Data,Mesh,Phys,-1); % milieu bas
     Sh = CalculMatS(Data,Mesh,Phys,+1); % milieu haut
     MatS = CalculMatS(Data,Mesh,Phys); % Matrices S des différentes couches
@@ -301,9 +321,12 @@ if numel(lambda) == 1 && numel(theta) == 1
     end
 
 else
-    parfor k = 1:length(Xl(:))
+    parfor k = 1:length(Xl(:))  % Loop lambda & theta
+        %
         Data0 = SetData(Data,'Lambda0',Xl(k),'Theta0',Xa(k),'nb',nb,'nh',nh);
         Data1 = InterpIndex(Data0); % Mise à jour des indices, nb et nh
+        %
+        %
         Phys1 = CaractMat(Mesh,Data1);
         [r,t] = CalculFMM(Data1,Mesh,Phys1,Nper);
         if sum(Data1(1).Sym) ~= 4
