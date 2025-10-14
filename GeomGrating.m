@@ -119,4 +119,12 @@ for kh = 1:Nh
     N0 = [N N0];
 end
 
+for kc = 1:size(ab,1)
+    P = isnan(ab{kc}(:,1));
+    ab{kc}(P,1) = Inf;
+    P = isnan(ab{kc}(:,2));
+    ab{kc}(P,2) = Inf;
+end
+
+
 end
