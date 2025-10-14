@@ -100,8 +100,17 @@ else
     end
 end
 %
-
-
+if length(NumSD) == length(Mesh.Cn)
+    [x,y] = deal(Mesh.CoorN(:,1),Mesh.CoorN(:,2));
+    [X,Y] = deal(x(Mesh.Cn(:,:)),y(Mesh.Cn(:,:)));
+%
+    fv = patch(X',Y',NumSD(:));
+    set(fv,'FaceAlpha',1,'EdgeColor',str)
+    axis equal,
+    axis on, axis tight
+    xlabel('x'), ylabel('y'),
+    colorbar
+else
 %
 for kd = 1:length(NumSD)
     k = NumSD(kd);
@@ -117,12 +126,14 @@ for kd = 1:length(NumSD)
     xlabel('x'), ylabel('y'),
     colorbar
 end
+end
+%
+end
 
-% if length(Mesh0)>1,
-%     plot([min(Mesh.CoorN(:,1)) max(Mesh.CoorN(:,1))],...
-%         [max(Mesh.CoorN(:,2)) max(Mesh.CoorN(:,2))],'--r','LineWidth',4)
-% end
-
+if isfield(Mesh,'xv') && ~isempty(Mesh.xv)
+    for k = 1:size(Mesh.xv,1)
+        plot(Mesh.xv(k,:),Mesh.yv(k,:),'w','LineWidth',1);
+    end
 end
 
 end
@@ -149,13 +160,13 @@ hold on
 for kc = 1:length(Mesh0)
     Mesh = Mesh0(kc);
     if nargin < 2 || isempty(NumSD0),
-        [NumSD,C] = deal(1:max(Mesh.Nsd));
+        [NumSD,C] = deal(unique(Mesh.Nsd)); %deal(1:max(Mesh.Nsd));
     else
             if isstruct(NumSD0)
                 Data = NumSD0(kc);
                 Data = InterpIndex(Data);
                 C = abs(Data.Indice);
-                NumSD = 1:length(Data.Indice);
+                NumSD = unique(Mesh.Nsd);%1:length(Data.Indice);
             else
                 [NumSD,C] = deal(NumSD0);
             end
@@ -166,6 +177,8 @@ for kc = 1:length(Mesh0)
 
     for ki = 1:length(NumSD)
         k = NumSD(ki);
+
+        if any(ismember(Mesh.Nsd,k))
 
         Pe = Mesh.Nsd == k;
         if isfield(Mesh,'Pe') && ~isempty(Mesh.Pe), Pe = Pe & eval(char(Mesh.Pe)); end
@@ -195,8 +208,9 @@ for kc = 1:length(Mesh0)
 
     end
 %
-if ~(isfield(Mesh,'Pe') && ~isempty(Mesh.Pe)), 
+if ~(isfield(Mesh,'Pe') && ~isempty(Mesh.Pe)) 
 if isfield(Mesh,'xv') && ~isempty(Mesh.xv)
+    
     if isfield(Mesh,'yv') && ~isempty(Mesh.yv)
         for k = 1:size(Mesh.xv,1)
             plot3(Mesh.xv(k,:),Mesh.yv(k,:),max(Mesh.CoorN(:,3))*ones(size(Mesh.xv(k,:))),'k','LineWidth',1);
@@ -211,14 +225,17 @@ if isfield(Mesh,'xv') && ~isempty(Mesh.xv)
 end
 end
 
-NumMax = ceil(max([NumMax Label{kc}]));
+NumMax = ceil(max([NumMax eval(Label{kc})]));
 %colorbar('Ticks',NumSD,'TickLabels',Label)
 box on,
 set(gca,'BoxStyle','full','LineWidth',2);
 
-[xm,xM,ym,yM] = MinMax(util(Mesh.CoorN(:,1:2)));
+[xm,xM,ym,yM] = MinMax(util(Mesh.CoorN(:,1:3)));
+zm = min(Mesh0(1).CoorN(:,3));
+zM = max(Mesh0(end).CoorN(:,3));
+%axis([xm,xM,ym,yM,zm,zM])
 axis([xm,xM,ym,yM])
-
+    end
 end
 %colorbar('Ticks',NumSD,'TickLabels',Label)
 colorbar('Ticks',1:NumMax)
