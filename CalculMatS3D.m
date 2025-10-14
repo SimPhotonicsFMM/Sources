@@ -115,7 +115,7 @@ if Coef == -1
     %
     end
     %
-    Pvp = find(abs(real(Vp))<1e-6); % troncature aux ordres propagatifs
+    Pvp = find(abs(real(Vp))<Data.Eps); % troncature aux ordres propagatifs
     Pd = Pvp(:).';
     if ~isreal(Phys.Kx) && abs(imag(Phys.Kx))>0, Pd = 1:length(Vp); end
     %
@@ -126,6 +126,7 @@ if Coef == -1
         if sum(Data.Sym) ~= 4
             %Pdi = find(abs(abs(Vp)-abs(Data.nb*Phys.K0*cos(Data.Theta0)))<Phys.K0/1e6)';
             Pdi = find(abs(abs(Vp)-abs(sqrt(Data.nb^2*Phys.K0^2-Phys.Kx^2)))<Phys.K0/1e6)';
+            Pdi = Pdi(end);
         else
             Pdi = [(length(mx)-1)/2+1+length(mx) (length(mx)-1)/2+1];
         end
@@ -164,16 +165,16 @@ elseif Coef == +1
     InvQ = inv(Q);
 
     if sum(Data.Sym) ~= 4
-        InvP = inv(P);
+        %InvP = inv(P);
         [R_E,R_H,InvR_E,InvR_H] = MatSym(Data);
         normE = sqrt(sum(R_E.^2,1));
         normH = sqrt(sum(R_H.^2,1));
         P1 = InvR_H*P*R_H*diag(1./normH);
-        P2 = InvR_H*P*R_E*diag(1./normE);
+        %P2 = InvR_H*P*R_E*diag(1./normE);
         %Q2 = InvR_E*Q*R_H*diag(1./normH);
-        InvQ1 = diag(normE)*InvR_E*InvQ*R_E;
+        %InvQ1 = diag(normE)*InvR_E*InvQ*R_E;
         InvQ2 = diag(normH)*InvR_H*InvQ*R_E;
-        InvP2 = diag(normE)*InvR_E*InvP*R_H;
+        %InvP2 = diag(normE)*InvR_E*InvP*R_H;
 %         if Data.ChampInc == -1
 %             Vp = diag(InvR_E*diag(Vp)*R_E);
 %         elseif Data.ChampInc == +1
@@ -186,10 +187,11 @@ elseif Coef == +1
 %                  zeros(length(P1)*2,1)};
 
         if Data.Sym(1) == 2 && Data.Sym(2) ~= 2           
-            MatSh = {[InvQ2 , -eye(size(InvP2,1),size(P1,2)) ; P1*InvQ2 , -2*P1], ...
+            MatSh = {[InvQ2 , -eye(size(InvQ2,1),size(P1,2)) ; P1*InvQ2 , -2*P1], ...
                  zeros(length(P1)*2,1)};
-         else
-             MatSh = {[InvQ1 , -eye(size(InvP2*P1)) ; P1*InvQ2 , -2*P1], ...
+        else
+            InvQ1 = diag(normE)*InvR_E*InvQ*R_E;
+             MatSh = {[InvQ1 , -eye(size(InvQ1,1),size(P1,2)) ; P1*InvQ2 , -2*P1], ...
                   zeros(length(P1)*2,1)};
 % 
          end
@@ -203,7 +205,7 @@ elseif Coef == +1
 
     end
     %% 
-    Pvp = find(abs(real(Vp))<1e-6); % troncature aux ordres propagatifs
+    Pvp = find(abs(real(Vp))<Data.Eps); % troncature aux ordres propagatifs
     Pu = Pvp.';
     if ~isreal(Phys.Kx) && abs(imag(Phys.Kx))>0, Pu = 1:length(Vp); end
 
@@ -211,7 +213,8 @@ elseif Coef == +1
     if Data.ChampInc == +1
         if sum(Data.Sym) ~= 4
             %Pui = find(abs(abs(Vp)-abs(Data.nh*Phys.K0*cos(Data.Theta0)))<Phys.K0/1e6)'+n;
-            Pui = find(abs(abs(Vp)-abs(sqrt(Data.nh^2*Phys.K0^2-Phys.Kx^2)))<Phys.K0/1e6)'+n;
+            Pui = find(abs(imag(Vp)-abs(sqrt(Data.nh^2*Phys.K0^2-Phys.Kx^2)))<Phys.K0/1e6)'+n;
+            Pui = Pui(end);
 
         else
             Pui = [(length(mx)-1)/2+1+length(mx)+n (length(mx)-1)/2+1+n];
@@ -241,8 +244,9 @@ else
         %
         [Mesh.Cn,Mesh.CoorN,Mesh.Nsd,Mesh.CoorV]=deal(Mesh.Cn,Mesh.CoorN,Mesh.Nsd,Mesh.CoorV);
         Mesh = ShiftMesh(utilMesh2(Mesh));
+        Data.hc = max(Mesh.CoorN(:,3))-min(Mesh.CoorN(:,3)); %
         %
-        if numel(Data.Indice) == 1 
+        if isscalar(Data.Indice) 
             Data.nc = Data.Indice;
             if sum(Data.Sym) ~= 4, Data.lx = 1; Data.ly = 1; end
         else
@@ -269,7 +273,7 @@ else
             end
         end
         %
-        [P,Q,V,Vp,InvEpz,InvMuz] = CalculVVp(Data,Phys,BetaX,BetaY,Dx,Dy);
+        [P,Q,V,Vp,InvEpz,InvMuz,Epx,Epy] = CalculVVp(Data,Phys,BetaX,BetaY,Dx,Dy);
         %
         %
         hc = max(Mesh.CoorN(:,3))-min(Mesh.CoorN(:,3)); %Data.hc;
@@ -323,7 +327,7 @@ else
         %           -(P.*TanH)/dQ    , (P.*InvCosH)/dP];
 
         MatS{2} = zeros(length(P)*2,1);
-        [MatS{3},MatS{4},MatS{5},MatS{6},MatS{7}] = deal(P,Q,V,Vp,[InvEpz(:),InvMuz(:)]);
+        [MatS{3},MatS{4},MatS{5},MatS{6},MatS{7}] = deal(P,Q,V,Vp,[InvEpz(:),InvMuz(:),Epx(:),Epy(:)]);
     else                % HYB
         if nargin == 4
             tic, [K,M,Pe0] = InitCalculMat(Data,Mesh,Dof); toc
@@ -398,7 +402,7 @@ end
 end
 %%
 
-function [P,Q,V,Vp,InvEpz,InvMuz] = CalculVVp(Data,Phys,BetaX,BetaY,Dx,Dy)
+function [P,Q,V,Vp,InvEpz,InvMuz,Epx,Epy] = CalculVVp(Data,Phys,BetaX,BetaY,Dx,Dy)
 
 %
 % Calcul de valeurs et vecteurs propres de la matrice de transmission
@@ -424,17 +428,48 @@ if numel(Data.nc) == 1 && ~isfield(Data,'lx')% milieu homogène isotrope
     %
     InvEpz = 1/(Phys.K0*MatPz);
     InvMuz = 1/(Phys.K0*MatQz);
+    Epx = Phys.K0*MatPx;
+    Epy = Phys.K0*MatPy;
     %
+    % f = abs(BetaX)<eps;
+    % [~,Pf] = min(abs(BetaX(~f)));
+    % BetaX(f) = BetaX(Pf)/1e0;
+    % f = abs(BetaY)<eps;
+    % [~,Pf] = min(abs(BetaY(~f)));
+    % BetaY(f) = BetaY(Pf)/1e0;
+
     Dim = length(BetaX);
     Kxx = spdiags(BetaX(:).^2,0,Dim,Dim); %Kxx = diag(BetaX.^2);
     Kyy = spdiags(BetaY(:).^2,0,Dim,Dim); %Kyy = diag(BetaY.^2);
-    Kxy = spdiags(BetaX(:).*BetaY(:),0,Dim,Dim); %Kxy = diag(BetaX.*BetaY);
+    kxy = BetaX(:).*BetaY(:);
+    Kxy = spdiags(kxy,0,Dim,Dim); %Kxy = diag(BetaX.*BetaY);
     %
+
 %     A = [1/(Phys.K0*MatP)*Kxy , Phys.K0*MatQ*Idx-1/(Phys.K0*MatP)*Kxx;...
 %         -Phys.K0*MatQ*Idy+1/(Phys.K0*MatP)*Kyy ,  -1/(Phys.K0*MatP)*Kxy];
-
-    B = [1/(Phys.K0*MatQ)*Kxy , Phys.K0*MatP*Idx-1/(Phys.K0*MatQ)*Kxx;...
-        -Phys.K0*MatP*Idy+1/(Phys.K0*MatQ)*Kyy , -1/(Phys.K0*MatQ)*Kxy];
+    B21 = diag(-(Phys.K0)*MatP*Idy+1/((Phys.K0)*MatQ)*Kyy);
+    f = find(abs(B21)<eps);
+    if ~isempty(f), B21(f) = B21(f(1)-1)/1e12; end
+    B21 = spdiags(B21,0,length(B21),length(B21));
+%
+    B12 = diag(Phys.K0*MatP*Idx-1/(Phys.K0*MatQ)*Kxx);
+    f = find(abs(B12)<eps);
+    if ~isempty(f), B12(f) = B12(f(1)-1)/1e12; end
+    B12 = spdiags(B12,0,length(B12),length(B12));
+%
+    B = [1/(Phys.K0*MatQ)*Kxy , B12;...
+        B21 , -1/(Phys.K0*MatQ)*Kxy];
+    
+%    B = [1/(Phys.K0*MatQ)*Kxy , Phys.K0*MatP*Idx-1/(Phys.K0*MatQ)*Kxx;...
+%        -(Phys.K0)*MatP*Idy+1/((Phys.K0)*MatQ)*Kyy , -1/(Phys.K0*MatQ)*Kxy];
+    if isfield(Data,'Nsub') && ~isempty(Data.Nsub) && Data.Nsub ~= 0 && Data.hc ~= 0
+        A = [1/(Phys.K0*MatP)*Kxy , Phys.K0*MatQ*Idx-1/(Phys.K0*MatP)*Kxx;...
+         -Phys.K0*MatQ*Idy+1/(Phys.K0*MatP)*Kyy ,  -1/(Phys.K0*MatP)*Kxy];
+        A = mat2cell(A,[length(A)/2 length(A)/2],[length(A)/2 length(A)/2]);
+        B = mat2cell(B,[length(B)/2 length(B)/2],[length(B)/2 length(B)/2]);
+        [P,Q,V,Vp] = deal(A,B,Data,Phys);
+        return
+    end
 
     %
     VectD = -Phys.K0^2*MatP*MatQ+(BetaX.^2)+(BetaY.^2);
@@ -444,7 +479,9 @@ if numel(Data.nc) == 1 && ~isfield(Data,'lx')% milieu homogène isotrope
     
     f = ((imag(Vp)-real(Vp))<0);
     Vp(f) = -Vp(f);
-    
+    %
+    f = find(abs(Vp)<eps);
+    if ~isempty(f), Vp(f) = Vp(f(1)-1)/1e2; end
     %
     Ate = sqrt(-2*1i*Phys.K0*MatQx./(Dx*Dy*Vp(1:length(Vp)/2).^3));
     Atm = sqrt(2*1i./(Phys.K0*MatPx*Dx*Dy*Vp(1:length(Vp)/2))); 
@@ -598,8 +635,13 @@ else
         M = A * B;
     end
     clear A
-    if issparse(M), M = full(M); end
-    [V,D] = eig(M,'nobalance','vector');
+    if numel(Data.nc) == 1 && Data.lx == 1 && Data.ly == 1 && issparse(M)
+        [V,D] = eigs(M,length(M));
+        D = diag(D);
+    else
+        if issparse(M), M = full(M); end
+        [V,D] = eig(M,'nobalance','vector');
+    end
     clear M
     Vp = sqrt(D); %sqrt(diag(D));
     f = ((imag(Vp)-real(Vp))<0);
