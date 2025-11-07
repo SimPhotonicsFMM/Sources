@@ -23,8 +23,10 @@ function Phys = CaractMat(Mesh,Data,Kx,Ky)
 if nargin == 0
     Phys.c0 = 2.99792458e+14;        % µm/s
     Phys.Mu0 = 4*pi*1e-7;            % Perméabilité du vide
-    Phys.Eps0 = 1/(36*pi*1e9);       % Permittivité du vide
-    Phys.Z0 = sqrt(Phys.Mu0/Phys.Eps0);
+    Phys.Z0 = Phys.Mu0*Phys.c0*1e-6;
+    Phys.Eps0 = 1/(Phys.Z0*Phys.c0*1e-6);       % Permittivité du vide
+    %Phys.Eps0 = 1/(36*pi*1e9);       % Permittivité du vide
+    %Phys.Z0 = sqrt(Phys.Mu0/Phys.Eps0);
     return
 end
 
