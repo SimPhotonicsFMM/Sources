@@ -259,8 +259,8 @@ end
 %
 
 %    TfApod = ones(size(BetaX(:)));
-Eps = 0.25;
-TfApod = Apod(BetaX,BetaY,Eps);
+Eps = .75;
+TfApod = Apod(BetaX-BetaX0,BetaY-BetaY0,Eps);
 %
 MatBetaX = repmat(reshape(BetaX(:),1,length(BetaX(:))),length(BetaX(:)),1);
 MatBetaY = repmat(reshape(BetaY(:),1,length(BetaY(:))),length(BetaY(:)),1);
@@ -724,25 +724,33 @@ end
 %%
 function TfApod = Apod(BetaX,BetaY,Eps)
 
-%Eps = 0.25;
+%Eps = 0.75;
+
+if length(BetaX(:))==1 && length(BetaY(:))==1, TfApod = 1; return; end
 
 TfApodX = ones(size(BetaX(:)));
 alphaX = BetaX*2*pi/(max(BetaX(:))-min(BetaX(:)));
 
+Per = 2*Eps*pi; alpha0 = (1-Eps)*pi;
 Px = find(alphaX>(1-Eps)*max(alphaX(:)));
-TfApodX(Px) = (0.5-0.5*cos(alphaX(Px)/Eps));
+%TfApodX(Px) = (0.5-0.5*cos(alphaX(Px)/Eps));
+TfApodX(Px) = .5+.5*cos(2*pi/Per*(alphaX(Px)-alpha0));
 Px = find(alphaX<-(1-Eps)*max(alphaX(:)));
-TfApodX(Px) = (0.5-0.5*cos(alphaX(Px)/Eps));
+%TfApodX(Px) = (0.5-0.5*cos(alphaX(Px)/Eps));
+TfApodX(Px) = .5+.5*cos(2*pi/Per*(alphaX(Px)+alpha0));
 %
 TfApodY = ones(size(BetaY(:)));
 alphaY = BetaY'*2*pi/(max(BetaY(:))-min(BetaY(:)));
 
 Py = find(alphaY>(1-Eps)*max(alphaY(:)));
-TfApodY(Py) = (0.5-0.5*cos(alphaY(Py)/Eps));
+%TfApodY(Py) = (0.5-0.5*cos(alphaY(Py)/Eps));
+TfApodY(Py) = .5+.5*cos(2*pi/Per*(alphaY(Py)-alpha0));
 Py = find(alphaY<-(1-Eps)*max(alphaY(:)));
-TfApodY(Py) = (0.5-0.5*cos(alphaY(Py)/Eps));
+%TfApodY(Py) = (0.5-0.5*cos(alphaY(Py)/Eps));
+TfApodY(Py) = .5+.5*cos(2*pi/Per*(alphaY(Py)+alpha0));
+
 
 TfApod = TfApodX.*TfApodY;
 
-end
 
+end
