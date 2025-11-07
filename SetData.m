@@ -43,7 +43,7 @@ for kc = 1:length(Data)
             Data(kc).(FieldData{P}) = c{k};
         else % nouveau champ
             Data(kc).(f{k}) = c{k};
-            warning(['Nouvelle donnée : ', f{k}]); 
+            warning(['New data : ', f{k}]); 
         end
     end
 end
@@ -174,7 +174,7 @@ Data = struct('Lambda0', .6 , ...       % Longueur d'onde en µm
               'nb',1,...                % Indice du bas
               'nh',1,...                % Indice du haut
               'TypePol',2, ...          % 0: TE  - 2: TM
-              'CoefPml',5*(1+1i), ...   % Coefficient du PML
+              'CoefPml',3*(1+1i), ...   % Coefficient du PML
               'Ie',[0; 0; 0], ...       % Dipôle électrique
               'Im',[0; 0; 0], ...       % Dipôle magnétique
               'CoorDip',[0 0 0],...     % Coordonnées du dipôle
@@ -192,6 +192,7 @@ Data = struct('Lambda0', .6 , ...       % Longueur d'onde en µm
               'nc',1,...                % Indice d'une couche
               'li',0,...                % Largeur des inclusions
               'DofType','Edge',...      % DOF Node ou Edge
+              'Eps', 1e-6, ...          % Valeur Epsilon pour troncature des modes
               'Help',Lexique); 
 
 end
