@@ -1,14 +1,16 @@
 function varargout = Field(index,geom,lambda,theta,inc,varargin)
 
-
-varin = varargin;
+if length(varargin) == 1, varin = varargin{1}; else, varin = varargin; end
+%varin = varargin;
 f = varin(1:2:end);
 P = find(ismember(f,'Field'));
 dim = length(varin);
-if isempty(P) || varin{2*P} == 0
+if isempty(P) 
     varin{dim+1} = 'Field';
     varin{dim+2} = 1;
 %     error('For Field Calculation, set parameter ''Field'' equal to 1 ' )
+elseif varin{2*P} == 0
+    varin{2*P} = 1;
 end
 %
 if length(lambda)>1 || length(theta)>1
