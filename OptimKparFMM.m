@@ -73,12 +73,12 @@ for kw = 1:2
     else
         s = Spectrum(index, geom, lambda, theta, inc, varin); % Compute field
     end
-    [E,H] = CalculFieldFMM(s,0,0,0);
+    [E,H] = CalculFieldFMM(s,0,0,sum(geom.hc)+1e-3);
     % Evaluate the function based on polarization
     switch Pol
         case 0
-            fk(kw) = 1 / sum(E(1:3)); % TM polarization
-            %fk(kw) = 1 / sum(s.CoefD(:,1));
+            %fk(kw) = 1 / sum(E(1:3)); % TM polarization
+            fk(kw) = 1 / sum(s.CoefD(:,1));
         case 1
             %fk(kw) = 1 / sum(E(4:6)); % TE polarization
             fk(kw) = 1 / sum(s.CoefD(:,2));
