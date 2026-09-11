@@ -457,7 +457,13 @@ if nargin <= 11
     if ~isempty(yv) && OptMesh == 1, [x0,y0,dx,dy] = OptimMesh(x0,y0,xv,yv,NumSD); end
 end
 %
-z0 = linspace(0,h,npz);
+if isscalar(npz)
+    z0 = linspace(0,h,npz);
+else
+    h = max([h,npz(2:end)]);
+    z0 = [linspace(0,h,npz(1)) npz(2:end)];
+    z0 = unique2(util(z0),1e-4);
+end
 
 % Maillage
 P0 = find(abs(x0)<eps);
@@ -708,20 +714,15 @@ end
 %%
 if nargin <= 11
     if ~isempty(yv) 
-        if isempty(NumSD) || length(NumSD) == 1, Mesh.Nsd(:) = 2; else, Mesh.Nsd(:) = max(NumSD)+1; end
+        if isempty(NumSD) || isscalar(NumSD)
+            Mesh.Nsd(:) = 2; 
+        else
+            Mesh.Nsd(:) = max(NumSD)+1; 
+            if length(NumSD) == size(yv,1)+1
+                Mesh.Nsd(:) = NumSD(end);
+            end
+        end
         
-        %Mesh.Nsd(:) = 2;
-        % for k = 1:size(xv,1)
-        % in = inpolygon(Mesh.CoorV(:,1),Mesh.CoorV(:,2),xv(k,:),yv(k,:));
-        % if isempty(NumSD) || length(NumSD) == 1, Mesh.Nsd(in) = 1; else, Mesh.Nsd(in) = NumSD(k); end
-        % %Mesh.Nsd(in) = 1;
-        % end
-        % in = cell(size(xv,1),1);
-        % [xf,yf] = deal(Mesh.CoorV(:,1),Mesh.CoorV(:,2));
-        % parfor k = 1:size(xv,1)
-        %     in{k} = inpolygon(xf,yf,xv(k,:),yv(k,:));
-        % end
-        %tic
         if ~isempty(yv) && OptMesh == 1 %npz==2
             [xv,yv]=deal(single(xv),single(yv));
             Xg = sum(xv,2)/size(xv,2);
@@ -793,7 +794,8 @@ d51 = sqrt(sum((Mesh.CoorN(Mesh.Cn(:,5),:)-Mesh.CoorN(Mesh.Cn(:,1),:)).^2,2));
 
 Mesh.Vol = d21.*d41.*d51;
 
-Mesh = NumFacet(Mesh);
+%Mesh = NumFacet(Mesh);
+Mesh = NumFacet(utilMesh(Mesh));
 if SaveOption == 1, Mesh = SurfFacet3D(Mesh); end
 
 end 
@@ -801,7 +803,7 @@ end
 %% ------------------------------------------------------------------------%
 
 
-function Mesh1 = NumFacet(Mesh)
+function Mesh1 = NumFacet1(Mesh)
 
 for k = 1:max(Mesh.Nsd), s(k).TabP = int16(zeros(length(Mesh.ExtFa),1)); end
 
@@ -809,17 +811,6 @@ for k = 1:max(Mesh.Nsd), s(k).TabP = int16(zeros(length(Mesh.ExtFa),1)); end
 for kn = 1:max(Mesh.Nsd),
 
     Pe = find(Mesh.Nsd == kn);
-    %Pfe = unique(Mesh.Cf(Pe,:));
-    %TabPf = zeros(length(Pfe),1);
-    
-    % for ke = 1:length(Pe),
-    %     for k = 1:size(Mesh.Cf,2),
-    %         s(kn).TabP(Mesh.Cf(Pe(ke),k)) = s(kn).TabP(Mesh.Cf(Pe(ke),k))+1;
-    %     end
-    % end
-    % for ke = 1:length(Pe)
-    %       s(kn).TabP(Mesh.Cf(Pe(ke),:)) = s(kn).TabP(Mesh.Cf(Pe(ke),:))+1;
-    % end
     s(kn).TabP(Mesh.Cf(Pe(:),:)) = s(kn).TabP(Mesh.Cf(Pe(:),:))+1;
 
     s(kn).TabP(s(kn).TabP ~= 1) = int16(0);
@@ -827,10 +818,10 @@ for kn = 1:max(Mesh.Nsd),
     
     Mesh.TabNsdF{kn} = int16(s(kn).TabP);
 
-%    disp(kn)
-
 end
-
+%
+if max(Mesh.Nsd) > 1
+   
 for kn = 1:max(Mesh.Nsd)
     Pf = find(Mesh.TabNsdF{kn} ~= 0);
     for k = 1:length(Pf)
@@ -839,6 +830,10 @@ for kn = 1:max(Mesh.Nsd)
             if Mesh.Nsd(ie(1)) == Mesh.Nsd(ie(2)), Mesh.TabNsdF{kn}(Pf(k)) = 0; end
         end
     end
+end
+else
+    P = Mesh.TabP ~= 1;
+    Mesh.TabNsdF{1}(P) = 0;
 end
 
 Mesh1 = Mesh;
