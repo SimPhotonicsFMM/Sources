@@ -27,12 +27,20 @@ end
 
 
 Flag = zeros(length(Mesh.ExtAr),1);
-
+Ne = size(Mesh.Ca,1);
 for ia = 1:length(Mesh.ExtAr)
-    [Pe,~] = find(ismember(abs(Mesh.Ca),ia));
-    if numel(Pe) == 1 
+    %[Pe,~] = find(ismember(abs(Mesh.Ca),ia));
+    Pe1 = find((abs(Mesh.Ca(:))-ia) == 0);
+    P1 = Pe1<=Ne; 
+    Pe = Pe1(P1);
+    for k = 2:size(Mesh.Ca,2)
+        P = Pe1>(k-1)*Ne & Pe1<=k*Ne;
+        if ~isempty(P), Pe = [Pe; Pe1(P)-(k-1)*Ne]; end
+    end
+
+    if isscalar(Pe)
         Flag(ia) = 1; 
-    elseif numel(Pe) >= 2
+    else
         if Mesh.Nsd(Pe(1)) ~= Mesh.Nsd(Pe(2))
             Flag(ia) = 2;
         end
