@@ -19,7 +19,14 @@ end
 %
 s = Spectrum(index,geom,lambda,theta,inc,varin);
 
-[x,y,z] = deal(geom.x,geom.y,geom.z);
+P = ismember(f,'x') | ismember(f,'y') | ismember(f,'z');
+if isempty(find(P,1))
+    [x,y,z] = deal(geom.x,geom.y,geom.z);
+else
+    P = find(ismember(f,'x')); if isempty(P), x = 0; else, x = varin{2*P}; end
+    P = find(ismember(f,'y')); if isempty(P), y = 0; else, y = varin{2*P}; end
+    P = find(ismember(f,'z')); if isempty(P), z = 0; else, z = varin{2*P}; end
+end
 
 if isfield(s.Data,'Nsub') && sum(cell2mat({s.Data.Nsub})) ~= 0
     [E,H] = CalculFieldFD_FMM(s,x,y,z);
