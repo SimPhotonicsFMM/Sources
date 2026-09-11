@@ -155,9 +155,11 @@ if iscell(NumSD0)
 end
 
 NumMax = 0;
+Label = cell(length(Mesh0),1);
 
 hold on
 for kc = 1:length(Mesh0)
+    
     Mesh = Mesh0(kc);
     if nargin < 2 || isempty(NumSD0),
         [NumSD,C] = deal(unique(Mesh.Nsd)); %deal(1:max(Mesh.Nsd));
@@ -171,6 +173,7 @@ for kc = 1:length(Mesh0)
                 [NumSD,C] = deal(NumSD0);
             end
     end
+    Label{kc} = num2str(max(C));
     if kc>=2 && isfield(Mesh,'dh'), Mesh = MoveMesh(utilMesh(Mesh),[0 0 Mesh.dh]); end
 
     TabPf = 1:size(Mesh.ExtFa,1);
