@@ -75,7 +75,10 @@ Geom = struct('Help',Lexique, ...
               'Dim',3,...
               'x',0,...
               'y',0,...
-              'z',0);
+              'z',0);%,...
+              % 'npx',2,...
+              % 'npy',2,...
+              % 'npz',2);
           
 if nargin == 1, Geom = varargin{1}; return, end
 if nargin > 1 && isstruct(varargin{1}) 
@@ -127,13 +130,14 @@ if isfield(Geom,'ab')
             Geom.ab{kc}(P,1) = Geom.dx/2;
         end
     else
-        if ~isfield(Geom,'NumSD'), Geom.NumSD = ones(1,size(Geom.ab,1)); end
-        if ~isfield(Geom,'Dep'), Geom.Dep = zeros(size(Geom.ab)); end
         if isempty(Geom.ab), Geom.ab=[Geom.dx/2 Geom.dy/2]; end
         P = isinf(Geom.ab(:,2));% | isnan(Geom.ab(:,2));
         Geom.ab(P,2) = Geom.dy/2;
         P = isinf(Geom.ab(:,1));% | isnan(Geom.ab(:,1));
         Geom.ab(P,1) = Geom.dx/2;
+        if ~isfield(Geom,'NumSD')  , Geom.NumSD = ones(1,size(Geom.ab,1)); end
+        if ~isfield(Geom,'Dep') , Geom.Dep = zeros(size(Geom.ab)); end
+
     end
 end
 %
