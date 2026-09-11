@@ -286,8 +286,8 @@ if isscalar(lambda) && isscalar(theta)
         if ~isempty(NumLayer)
             [r,t,CoefD,R,T,E,H] = CalculCoefRT(Sb,MatS0,Sh,NumLayer);
             %n = length(MatS{1,1});
-            if length(NumLayer) == 1
-                MatS{NumLayer,6} = [E H];
+            if isfield(Data,'POD')
+                 MatS{NumLayer,6} = [E H];
             else
                 P = 0;
                 for k = 1:length(NumLayer)
@@ -389,7 +389,9 @@ elseif NbArgOut == 4
     
 else
     if sum(Data(1).Sym) ~= 4
-        varargout = {R_tem T_tem};
+        %varargout = {R_tem T_tem};
+    varargout = {squeeze(reshape(R_tem,size(Xl,1),size(Xl,2),NbOrder)), ...
+                 squeeze(reshape(T_tem,size(Xl,1),size(Xl,2),NbOrder))};
     else
     varargout = {squeeze(reshape(R_tem,size(Xl,1),size(Xl,2),NbOrder,4)), ...
                  squeeze(reshape(T_tem,size(Xl,1),size(Xl,2),NbOrder,4))};
