@@ -41,7 +41,13 @@ Mesh1.Ca = P1(abs(Ca)).*double(sign(Ca));
 
 %
 Mesh1.CoorF =  Mesh.CoorF(Pf,Dim);
-Mesh1.Nsd = Mesh.NsdF(Pf);
+
+Pf = find(Pf);
+Pe = zeros(size(Pf));
+for k = 1:length(Pf), [Pe(k),~] = find(ismember(Mesh.Cf,Pf(k))); end
+Mesh1.Nsd = Mesh.Nsd(Pe);
+%Mesh1.Nsd = Mesh.NsdF(Pf);
+
 if isfield(Mesh,'Surf'), Mesh1.Surf =  Mesh.Surf(Pf); end
 
 %
