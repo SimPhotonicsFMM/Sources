@@ -204,7 +204,7 @@ classdef utilMesh
                     Mesh4 = ExtractMesh(utilMesh(Mesh0(k)),Pe);
                     Mesh4 = MoveMesh(utilMesh(Mesh4),[-xmin -ymax 0]);
                     %
-                    if length(Mesh0) == 1
+                    if isscalar(Mesh0)
                         Mesh = AssembMesh(utilMesh(AssembMesh(utilMesh(Mesh1),utilMesh(Mesh2))),...
                                    utilMesh(AssembMesh(utilMesh(Mesh3),utilMesh(Mesh4))));
                     else
@@ -215,6 +215,39 @@ classdef utilMesh
             end
         
         end
+        %
+        % Number of facets
+        function Mesh1 = NumFacet(obj)
+        
+            Mesh = [obj.mesh];
+            %
+            if max(Mesh.Nsd) == 1
+                Mesh.TabNsdF{1} = int16(zeros(length(Mesh.ExtFa),1));
+                P = Mesh.TabP == 1;
+                Mesh.TabNsdF{1}(P) = 1;
+            else
+                for kn = 1:max(Mesh.Nsd)
+                    %
+                    Mesh.TabNsdF{kn} = int16(zeros(length(Mesh.ExtFa),1));
+                    %
+                    Pf = zeros(length(Mesh.NsdF),1);
+                    Pe = find(Mesh.Nsd == kn);
+                    for ie = 1:length(Pe)
+                        for k = 1:size(Mesh.Cf,2)
+                            if Pf(Mesh.Cf(Pe(ie),k)) == 0 
+                                Pf(Mesh.Cf(Pe(ie),k)) = 1;
+                                Mesh.TabNsdF{kn}(Mesh.Cf(Pe(ie),k)) = Mesh.Nsd(Pe(ie));
+                            else
+                                Pf(Mesh.Cf(Pe(ie),k)) = Pf(Mesh.Cf(Pe(ie),k))+1;
+                                Mesh.TabNsdF{kn}(Mesh.Cf(Pe(ie),k)) = 0;
+                            end
+                        end
+                    end
+                end
+            end
+            Mesh1 = Mesh;
+        end
+
         % New number of subdomain
         function Mesh = SetNumSD(obj,Num0,Num1)
 
