@@ -273,6 +273,7 @@ else
             end
         end
         %
+        
         [P,Q,V,Vp,InvEpz,InvMuz,Epx,Epy] = CalculVVp(Data,Phys,BetaX,BetaY,Dx,Dy);
         %
         %
@@ -280,7 +281,7 @@ else
 
         if isfield(Data,'Nsub') && ~isempty(Data.Nsub) && Data.Nsub ~= 0
             Data.hc = hc;
-            [MatS{1},MatS{2},MatS{3},MatS{4},MatS{5},MatS{6},MatS{7}] = deal(P,Q,Data,Phys,[],[],[InvEpz(:),InvMuz(:)]);
+            [MatS{1},MatS{2},MatS{3},MatS{4},MatS{5},MatS{6},MatS{7}] = deal(P,Q,Data,Phys,[],[],[InvEpz(:),InvMuz(:),Epx(:),Epy(:)]);
             return
         end
 
@@ -596,7 +597,7 @@ else
         B(1:Dim,Dim+1:end) = Epy-Kx1.*(InvMuzKx2);
         B(Dim+1:end,1:Dim) = -Epx+Ky1.*(InvMuzKy2);
         %M = [zeros(size(A,1),size(B,2)) , A ; B , zeros(size(B,1),size(A,2))];
-        clear Mux Muy Epx Epy Kx1 Ky1 InvMuzKx2 InvMuzKy2
+        clear Mux Muy Kx1 Ky1 InvMuzKx2 InvMuzKy2
         end
         end
     catch
@@ -605,7 +606,7 @@ else
         %Ky = spdiags(BetaY(:),0,Dim,Dim);
         A = [Kx*InvEpz*Ky , Muy-Kx*InvEpz*Kx ; -Mux+Ky*InvEpz*Ky , -Ky*InvEpz*Kx];
         B = [Kx*InvMuz*Ky , Epy-Kx*InvMuz*Kx ; -Epx+Ky*InvMuz*Ky , -Ky*InvMuz*Kx];
-        clear Kx Ky Epx Epy Mux Muy
+        clear Kx Ky Mux Muy
     end
 
     %
@@ -636,7 +637,7 @@ else
     end
     clear A
     if numel(Data.nc) == 1 && Data.lx == 1 && Data.ly == 1 && issparse(M)
-        [V,D] = eigs(M,length(M));
+        [V,D] = eigs(M,[],length(M));
         D = diag(D);
     else
         if issparse(M), M = full(M); end
