@@ -229,15 +229,15 @@ my = my(:)';
 mx0 = Data.mx+1;
 my0 = Data.my+1;
 %
-Dx = max(Mesh.CoorN(:,1))-min(Mesh.CoorN(:,1)); % Période en x
-Dy = max(Mesh.CoorN(:,2))-min(Mesh.CoorN(:,2)); % Période en y
+dx = max(Mesh.CoorN(:,1))-min(Mesh.CoorN(:,1)); % Période en x
+dy = max(Mesh.CoorN(:,2))-min(Mesh.CoorN(:,2)); % Période en y
   
 
 BetaX0 = Phys.Kx;
 BetaY0 = Phys.Ky;
 %
-BetaX = BetaX0 + 2*pi/Dx*(mx-mx0);
-BetaY = BetaY0 + 2*pi/Dy*(my-my0);
+BetaX = BetaX0 + 2*pi/dx*(mx-mx0);
+BetaY = BetaY0 + 2*pi/dy*(my-my0);
 
 % Intensité incidente
 if iscell(MatS{1}), MatS{1} = cell2mat(MatS{1}); end
@@ -252,9 +252,13 @@ EpMuz = MatS{7};
 if sqrt(size(EpMuz,1)) == m/2
     InvEpz = reshape(EpMuz(:,1),m/2,m/2);
     InvMuz = reshape(EpMuz(:,2),m/2,m/2);
+    Epx = reshape(EpMuz(:,3),m/2,m/2);
+    Epy = reshape(EpMuz(:,4),m/2,m/2);
 else
     InvEpz = EpMuz(:,1)*eye(m/2);
     InvMuz = EpMuz(:,2)*eye(m/2);   
+    Epx = EpMuz(:,3)*eye(m/2);   
+    Epy = EpMuz(:,4)*eye(m/2);   
 end
 %
 
@@ -276,10 +280,10 @@ if isreal(MatQzBetaY), MatQzBetaY = complex(MatQzBetaY); end
 %[MatPzBetaX,MatPzBetaY] = deal(InvEpz*diag(BetaX),InvEpz*diag(BetaY));
 %[MatQzBetaX,MatQzBetaY] = deal(InvMuz*diag(BetaX),InvMuz*diag(BetaY));
 %Phase = exp(1i*x(:)*BetaX + 1i*y(:)*BetaY);
-Phase = [];
+
 
 while ~isempty(z)
-    Pn = abs(z0 - min(z)) <= max(abs(Mesh.CoorN(:)))/1e6;
+    Pn = find(abs(z0 - min(z)) <= max(abs(Mesh.CoorN(:)))/1e6);
     Pk = find((z1-min(z))<=0);
     k = Pk(end);
     [Em1,Hm1] = deal(MatS{6}((1:m)+(k-1)*m,1:2),MatS{6}((1:m)+(k-1)*m,3:4)); % mettre à jour Em Hm 
@@ -295,22 +299,34 @@ while ~isempty(z)
     Em = (1-Alpha)*Em1 + Alpha*Em2;
     Hm = (1-Alpha)*Hm1 + Alpha*Hm2;
     
-    if isempty(Phase) || (norm(x(Pn)-x0)>eps && norm(y(Pn)-y0)>eps)
+    %if isempty(Phase) || (norm(x(Pn)-x0)>eps && norm(y(Pn)-y0)>eps)
         Phase = exp(1i*x(Pn)*BetaX + 1i*y(Pn)*BetaY);
-    end
+    %end
     %
-    Ex(Pn,:) = Phase*(TfApod.*Em(1:end/2,:));
-    Ey(Pn,:) = Phase*(TfApod.*Em(end/2+1:end,:));
+    if max(Mesh.Nsd)>1 && length(unique(x(1:end-2))) ~= 1
+        Ex(Pn,:) = FieldD2E(Em,Epx,Mesh,Phase,Phys,TfApod,x(Pn),y(Pn),1);
+    else
+        Ex(Pn,:) = Phase*(TfApod.*Em(1:end/2,:));
+    end
+
+    %    %
+    if max(Mesh.Nsd)>1 && length(unique(y(1:end-2))) ~= 1
+        Ey(Pn,:) = FieldD2E(Em,Epy,Mesh,Phase,Phys,TfApod,x(Pn),y(Pn),2);
+    else
+        Ey(Pn,:) = Phase*(TfApod.*Em(end/2+1:end,:));
+    end
+
+    %
     Hx(Pn,:) = Phase*(TfApod.*Hm(1:end/2,:));
     Hy(Pn,:) = Phase*(TfApod.*Hm(end/2+1:end,:));
     %Ezm = 1i*InvEpz*(diag(BetaX)*Hm(end/2+1:end) - diag(BetaY)*Hm(1:end/2));
     Ezm = 1i*(MatPzBetaX*Hm(end/2+1:end,:) - MatPzBetaY*Hm(1:end/2,:));
     Ez(Pn,:) = Phase*(TfApod.*Ezm);
+    %
     %Hzm = 1i*InvMuz*(diag(BetaX)*Em(end/2+1:end) - diag(BetaY)*Em(1:end/2));
     Hzm = 1i*(MatQzBetaX*Em(end/2+1:end,:) - MatQzBetaY*Em(1:end/2,:));
     Hz(Pn,:) = Phase*(TfApod.*Hzm);
     %
-    x0 = x(Pn); y0 = y(Pn);
     Pn = z > min(z);
     z = z(Pn);
 end
@@ -389,8 +405,8 @@ SIb = Sb11*Ib(Pdi,:);
 if size(SIb,2) == 0, SIb = zeros(size(SIb,1),2); end
 
 
-EHb = full([-Sh21 eye(m) ; eye(m) -Sb12])\full([SIh ; SIb]);
-%
+%EHb = full([-Sh21 eye(m) ; eye(m) -Sb12])\full([SIh ; SIb]);
+EHb = ([-Sh21 speye(m) ; speye(m) -Sb12])\([SIh ; SIb]);%
 %
 %
 
@@ -408,19 +424,25 @@ InvQ = inv(Q);
 %
 Vp = MatS{6};
 EpMuz = MatS{7};
+%
 if sqrt(size(EpMuz,1)) == m/2
     InvEpz = reshape(EpMuz(:,1),m/2,m/2);
     InvMuz = reshape(EpMuz(:,2),m/2,m/2);
+    Epx = reshape(EpMuz(:,3),m/2,m/2);
+    Epy = reshape(EpMuz(:,4),m/2,m/2);
 else
     InvEpz = EpMuz(:,1)*eye(m/2);
     InvMuz = EpMuz(:,2)*eye(m/2);   
+    Epx = EpMuz(:,3)*eye(m/2);   
+    Epy = EpMuz(:,4)*eye(m/2);   
 end
+%
 %
 [MatSb1,MatSh1] = deal(MatS);
 
 % Apodisation avec Hamming
 
-Eps = 0.25;
+Eps = 0.75;
 TfApod = Apod(BetaX,BetaY,Eps);
 %
 MatQP = [Q , Q; P -P];
@@ -442,17 +464,26 @@ if isreal(MatQzBetaY), MatQzBetaY = complex(MatQzBetaY); end
 %[MatPzBetaX,MatPzBetaY] = deal(InvEpz*diag(BetaX),InvEpz*diag(BetaY));
 %[MatQzBetaX,MatQzBetaY] = deal(InvMuz*diag(BetaX),InvMuz*diag(BetaY));
 
-Phase = [];
 
 while ~isempty(z)
-    Pn = abs(z0 - min(z)) <= max(abs(Mesh.CoorN(:)))/1e6;
+    Pn = find(abs(z0 - min(z)) <= max(abs(Mesh.CoorN(:)))/1e6);
     %Phase = exp(1i*Mesh.CoorN(Pn,1)*BetaX + 1i*Mesh.CoorN(Pn,2)*BetaY);
-    if isempty(Phase) || (norm(x(Pn)-x0)>eps && norm(y(Pn)-y0)>eps)
+    %if isempty(Phase) || (norm(x(Pn)-x0)>eps && norm(y(Pn)-y0)>eps)
         Phase = exp(1i*x(Pn)*BetaX + 1i*y(Pn)*BetaY);
+    %end
+    %
+    if max(Mesh.Nsd)>1 && length(unique(x(1:end-2))) ~= 1
+        Ex(Pn,:) = FieldD2E(Em,Epx,Mesh,Phase,Phys,TfApod,x(Pn),y(Pn),1);
+    else
+        Ex(Pn,:) = Phase*(TfApod.*Em(1:end/2,:));
     end
     %
-    Ex(Pn,:) = Phase*(TfApod.*Em(1:end/2,:));
-    Ey(Pn,:) = Phase*(TfApod.*Em(end/2+1:end,:));
+    if max(Mesh.Nsd)>1 && length(unique(y(1:end-2))) ~= 1
+        Ey(Pn,:) = FieldD2E(Em,Epy,Mesh,Phase,Phys,TfApod,x(Pn),y(Pn),2);
+    else
+        Ey(Pn,:) = Phase*(TfApod.*Em(end/2+1:end,:));
+    end
+    %
     Hx(Pn,:) = Phase*(TfApod.*Hm(1:end/2,:));
     Hy(Pn,:) = Phase*(TfApod.*Hm(end/2+1:end,:));
     %Ezm = 1i*InvEpz*(diag(BetaX)*Hm(end/2+1:end) - diag(BetaY)*Hm(1:end/2));
@@ -499,7 +530,9 @@ while ~isempty(z)
         SIb = Sb11*Ib(Pdi,:);
         if size(SIb,2) == 0, SIb = zeros(size(SIb,1),2); end
     
-        EHm = full([-Sh21 eye(m) ; eye(m) -Sb12])\full([SIh ; SIb]);
+        %EHm = full([-Sh21 eye(m) ; eye(m) -Sb12])\full([SIh ; SIb]);
+        EHm = [-Sh21 speye(m) ; speye(m) -Sb12]\[SIh ; SIb];
+
         C = InvMatQP*EHm;
         zmin = min(z(Pn));
 
@@ -592,7 +625,8 @@ else
     Sb1 = Sb{1};
     [Sb11,Sb12] = deal(Sb1(1:m,1:m),Sb1(1:m,m+1:end));
     SIb = Sb11*Eh;
-    EHb = full([-Sh21 eye(m) ; eye(m) -Sb12])\full([SIh ; SIb]);
+    %EHb = full([-Sh21 eye(m) ; eye(m) -Sb12])\full([SIh ; SIb]);
+    EHb = ([-Sh21 speye(m) ; speye(m) -Sb12])\([SIh ; SIb]);
 end
 %
 %
@@ -610,18 +644,23 @@ InvQ = inv(Q);
 
 Vp = MatS{6};
 EpMuz = MatS{7};
+%
 if sqrt(size(EpMuz,1)) == m/2
     InvEpz = reshape(EpMuz(:,1),m/2,m/2);
     InvMuz = reshape(EpMuz(:,2),m/2,m/2);
+    Epx = reshape(EpMuz(:,3),m/2,m/2);
+    Epy = reshape(EpMuz(:,4),m/2,m/2);
 else
     InvEpz = EpMuz(:,1)*eye(m/2);
     InvMuz = EpMuz(:,2)*eye(m/2);   
+    Epx = EpMuz(:,3)*eye(m/2);   
+    Epy = EpMuz(:,4)*eye(m/2);   
 end
 %
 [MatSb1,MatSh1] = deal(MatS);
 
 % Apodisation avec Hamming
-Eps = 0.25;
+Eps = 0.75;
 TfApod = Apod(BetaX,BetaY,Eps);
 
 %
@@ -644,17 +683,26 @@ if isreal(MatQzBetaY), MatQzBetaY = complex(MatQzBetaY); end
 %[MatPzBetaX,MatPzBetaY] = deal(InvEpz*diag(BetaX),InvEpz*diag(BetaY));
 %[MatQzBetaX,MatQzBetaY] = deal(InvMuz*diag(BetaX),InvMuz*diag(BetaY));
 
-Phase = [];
 
 while ~isempty(z)
     Pn = abs(z0 - min(z)) <= max(abs(Mesh.CoorN(:)))/1e6;
     %Phase = exp(1i*Mesh.CoorN(Pn,1)*BetaX + 1i*Mesh.CoorN(Pn,2)*BetaY);
-    if isempty(Phase) || (norm(x(Pn)-x0)>eps && norm(y(Pn)-y0)>eps)
+    %if isempty(Phase) || (norm(x(Pn)-x0)>eps && norm(y(Pn)-y0)>eps)
         Phase = exp(1i*x(Pn)*BetaX + 1i*y(Pn)*BetaY);
+    %end
+    %
+    if max(Mesh.Nsd)>1 && length(unique(x(1:end-2))) ~= 1
+        Ex(Pn,:) = FieldD2E(Em,Epx,Mesh,Phase,Phys,TfApod,x(Pn),y(Pn),1);
+    else
+        Ex(Pn,:) = Phase*(TfApod.*Em(1:end/2,:));
     end
     %
-    Ex(Pn,:) = Phase*(TfApod.*Em(1:end/2,:));
-    Ey(Pn,:) = Phase*(TfApod.*Em(end/2+1:end,:));
+    if max(Mesh.Nsd)>1 && length(unique(y(1:end-2))) ~= 1
+        Ey(Pn,:) = FieldD2E(Em,Epy,Mesh,Phase,Phys,TfApod,x(Pn),y(Pn),2);
+    else
+        Ey(Pn,:) = Phase*(TfApod.*Em(end/2+1:end,:));
+    end
+    %
     Hx(Pn,:) = Phase*(TfApod.*Hm(1:end/2,:));
     Hy(Pn,:) = Phase*(TfApod.*Hm(end/2+1:end,:));
     %Ezm = 1i*InvEpz*(diag(BetaX)*Hm(end/2+1:end) - diag(BetaY)*Hm(1:end/2));
@@ -697,7 +745,8 @@ while ~isempty(z)
     
         SIb = Sb11*Eh;
     
-        EHm = full([-Sh21 eye(m) ; eye(m) -Sb12])\full([SIh ; SIb]);
+        %EHm = full([-Sh21 eye(m) ; eye(m) -Sb12])\full([SIh ; SIb]);
+        EHm = [-Sh21 speye(m) ; speye(m) -Sb12]\[SIh ; SIb];
         C = InvMatQP*EHm;
         zmin = min(z(Pn));
 
@@ -722,35 +771,35 @@ Vect = [VectE VectH];
 end
 
 %%
-function TfApod = Apod(BetaX,BetaY,Eps)
-
-%Eps = 0.75;
-
-if length(BetaX(:))==1 && length(BetaY(:))==1, TfApod = 1; return; end
-
-TfApodX = ones(size(BetaX(:)));
-alphaX = BetaX*2*pi/(max(BetaX(:))-min(BetaX(:)));
-
-Per = 2*Eps*pi; alpha0 = (1-Eps)*pi;
-Px = find(alphaX>(1-Eps)*max(alphaX(:)));
-%TfApodX(Px) = (0.5-0.5*cos(alphaX(Px)/Eps));
-TfApodX(Px) = .5+.5*cos(2*pi/Per*(alphaX(Px)-alpha0));
-Px = find(alphaX<-(1-Eps)*max(alphaX(:)));
-%TfApodX(Px) = (0.5-0.5*cos(alphaX(Px)/Eps));
-TfApodX(Px) = .5+.5*cos(2*pi/Per*(alphaX(Px)+alpha0));
-%
-TfApodY = ones(size(BetaY(:)));
-alphaY = BetaY'*2*pi/(max(BetaY(:))-min(BetaY(:)));
-
-Py = find(alphaY>(1-Eps)*max(alphaY(:)));
-%TfApodY(Py) = (0.5-0.5*cos(alphaY(Py)/Eps));
-TfApodY(Py) = .5+.5*cos(2*pi/Per*(alphaY(Py)-alpha0));
-Py = find(alphaY<-(1-Eps)*max(alphaY(:)));
-%TfApodY(Py) = (0.5-0.5*cos(alphaY(Py)/Eps));
-TfApodY(Py) = .5+.5*cos(2*pi/Per*(alphaY(Py)+alpha0));
-
-
-TfApod = TfApodX.*TfApodY;
-
-
-end
+% function TfApod = Apod(BetaX,BetaY,Eps)
+% 
+% %Eps = 0.75;
+% 
+% if length(BetaX(:))==1 && length(BetaY(:))==1, TfApod = 1; return; end
+% 
+% TfApodX = ones(size(BetaX(:)));
+% alphaX = BetaX*2*pi/(max(BetaX(:))-min(BetaX(:)));
+% 
+% Per = 2*Eps*pi; alpha0 = (1-Eps)*pi;
+% Px = find(alphaX>(1-Eps)*max(alphaX(:)));
+% %TfApodX(Px) = (0.5-0.5*cos(alphaX(Px)/Eps));
+% TfApodX(Px) = .5+.5*cos(2*pi/Per*(alphaX(Px)-alpha0));
+% Px = find(alphaX<-(1-Eps)*max(alphaX(:)));
+% %TfApodX(Px) = (0.5-0.5*cos(alphaX(Px)/Eps));
+% TfApodX(Px) = .5+.5*cos(2*pi/Per*(alphaX(Px)+alpha0));
+% %
+% TfApodY = ones(size(BetaY(:)));
+% alphaY = BetaY'*2*pi/(max(BetaY(:))-min(BetaY(:)));
+% 
+% Py = find(alphaY>(1-Eps)*max(alphaY(:)));
+% %TfApodY(Py) = (0.5-0.5*cos(alphaY(Py)/Eps));
+% TfApodY(Py) = .5+.5*cos(2*pi/Per*(alphaY(Py)-alpha0));
+% Py = find(alphaY<-(1-Eps)*max(alphaY(:)));
+% %TfApodY(Py) = (0.5-0.5*cos(alphaY(Py)/Eps));
+% TfApodY(Py) = .5+.5*cos(2*pi/Per*(alphaY(Py)+alpha0));
+% 
+% 
+% TfApod = TfApodX.*TfApodY;
+% 
+% 
+% end
