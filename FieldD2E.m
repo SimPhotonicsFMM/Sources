@@ -74,22 +74,6 @@ function Exy = FieldD2E(Em,Epxy,Mesh,Phase,Phys,TfApod,x,y,c)
 %   Exy     - [length(x) x 2] array containing the requested field
 %             component (Ex if c=1, Ey if c=2).
 %
-% ALGORITHM SUMMARY
-%   0. Fold the evaluation points (x,y) back into the fundamental periodic
-%      cell (modulo the mesh extent Dx, Dy), so periodic repetitions of
-%      the structure are handled transparently.
-%   For each material-grid line xyi(ki) perpendicular to the requested
-%   component:
-%     - Gather the elements attached to that line (Pe) and the evaluation
-%       points geometrically located in the corresponding strip (in).
-%     - If eps_xx and eps_yy are both uniform over the strip: the
-%       component is locally tangential -> direct synthesis from Em.
-%     - Otherwise (eps_xx and/or eps_yy vary along the strip, i.e. the
-%       requested component is normal to at least one interface inside
-%       it): synthesize the continuous D field, then recover
-%       E = D / (eps_cc * K0) element by element, using each element's own
-%       subdomain permittivity, so that the correct discontinuity of the
-%       normal component is reproduced across the interface.
 %
 % SEE ALSO
 %   CalculFieldFMM, CalculFieldFD_FMM, Field
@@ -137,43 +121,25 @@ y(P) = y(P) - floor((y(P)+Dy/2)/Dy)*Dy;
 for ki = 1:length(xyi)
     % Elements attached to the current material-grid line xyi(ki)
     Pe = find(abs(CoorVxy-xyi(ki)) < epsz);
-    Pen = unique(Mesh.Cn(Pe,:));
+    % the requested component is normal to that interface
+    % and therefore discontinuous. Reconstruct the physically
+    % continuous displacement field D first...
     %
-    % Bounding box of the strip, used to select which of the evaluation
-    % points (x,y) geometrically fall inside it
-    xd = Mesh.CoorN(Pen,1); yd = Mesh.CoorN(Pen,2);
-    xd = [min(xd) max(xd) max(xd) min(xd) min(xd)];
-    yd = [min(yd) min(yd) max(yd) max(yd) min(yd)];
-    in = inpolygon(x(:),y(:),xd(:),yd(:));
+    Dxy = Phase*(TfApod.*(Epxy*Em(ni:nf,:)));
+    for ke = 1:length(Pe)
+        ie = Pe(ke);
+        kd = Mesh.Nsd(ie);   % Local subdomain (material) of this element
+        Pen = unique(Mesh.Cn(ie,:));
+        %
+        xd = Mesh.CoorN(Pen,1); yd = Mesh.CoorN(Pen,2);
+        xd = [min(xd) max(xd) max(xd) min(xd) min(xd)];
+        yd = [min(yd) min(yd) max(yd) max(yd) min(yd)];
+        in = inpolygon(x(:),y(:),xd(:),yd(:));
+        %
+        % ...then recover E = D / eps_local on each side of the
+        % interface, using this element's own subdomain permittivity
     %
-    NumSd = unique(Mesh.Nsd(Pe));
-    %
-    if isscalar(unique(Phys.CaractEps(1,1,NumSd))) && ...
-       isscalar(unique(Phys.CaractEps(2,2,NumSd)))
-	%
-        % Strip is a single homogeneous material along the scanning direction
-        Exy(in,:) = Phase(in,:)*(TfApod.*Em(ni:nf,:));
-    else
-        % the requested component is normal to that interface
-        % and therefore discontinuous. Reconstruct the physically
-        % continuous displacement field D first...
-	%
-        Dxy = Phase*(TfApod.*(Epxy*Em(ni:nf,:)));
-        for ke = 1:length(Pe)
-            ie = Pe(ke);
-            kd = Mesh.Nsd(ie);   % Local subdomain (material) of this element
-            Pen = unique(Mesh.Cn(ie,:));
-            %
-            xd = Mesh.CoorN(Pen,1); yd = Mesh.CoorN(Pen,2);
-            xd = [min(xd) max(xd) max(xd) min(xd) min(xd)];
-            yd = [min(yd) min(yd) max(yd) max(yd) min(yd)];
-            in = inpolygon(x(:),y(:),xd(:),yd(:));
-            %
-            % ...then recover E = D / eps_local on each side of the
-            % interface, using this element's own subdomain permittivity
-	    %
-            Exy(in,:) = 1/Phys.CaractEps(c,c,kd)*Dxy(in,:)/Phys.K0;
-        end
+        Exy(in,:) = 1/Phys.CaractEps(c,c,kd)*Dxy(in,:)/Phys.K0;
     end
 end
 
