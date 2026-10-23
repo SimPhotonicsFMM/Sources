@@ -2,7 +2,7 @@ function [x0,y0,z0] = sf3d(n0,a0,angle0, Dep0, nu,nv)
 
 %
 u = linspace(-pi,pi,nu);
-v = linspace(-pi/2,pi/2,nv);
+v = linspace(+pi/2,-pi/2,nv);
 nu = length(u);
 nv = length(v);
 %
