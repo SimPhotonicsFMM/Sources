@@ -203,10 +203,9 @@ for kc = 1:length(Mesh0)
 
         fv = patch(X',Y',Z',C(ki));
         set(fv,'FaceAlpha',alpha,'EdgeColor',str)
-        axis equal,
-        axis on, view(3), axis tight
-        xlabel('x'), ylabel('y'), ylabel('y')
-        drawnow
+        %axis on, view(3), axis tight
+        %xlabel('x'), ylabel('y'), ylabel('y')
+        %drawnow
         if length(Mesh0) ==1 && nargin >= 2 && k < max(NumSD), pause(1), end
 
     end
@@ -228,20 +227,27 @@ if isfield(Mesh,'xv') && ~isempty(Mesh.xv)
 end
 end
 
+
+
 NumMax = ceil(max([NumMax eval(Label{kc})]));
 %colorbar('Ticks',NumSD,'TickLabels',Label)
-box on,
-set(gca,'BoxStyle','full','LineWidth',2);
-
 [xm,xM,ym,yM] = MinMax(util(Mesh.CoorN(:,1:3)));
 zm = min(Mesh0(1).CoorN(:,3));
 zM = max(Mesh0(end).CoorN(:,3));
 %axis([xm,xM,ym,yM,zm,zM])
-axis([xm,xM,ym,yM])
+%axis([xm,xM,ym,yM])
     end
 end
 %colorbar('Ticks',NumSD,'TickLabels',Label)
+box on,
+set(gca,'BoxStyle','full','LineWidth',2);
 colorbar('Ticks',1:NumMax)
+axis on, view(3), axis tight
+xlabel('x'), ylabel('y'), ylabel('y')
+
+axis([xm,xM,ym,yM])
+axis equal,
+%drawnow
 
 end
 
