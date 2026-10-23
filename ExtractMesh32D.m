@@ -43,8 +43,9 @@ Mesh1.Ca = P1(abs(Ca)).*double(sign(Ca));
 Mesh1.CoorF =  Mesh.CoorF(Pf,Dim);
 
 Pf = find(Pf);
-Pe = zeros(size(Pf));
-for k = 1:length(Pf), [Pe(k),~] = find(ismember(Mesh.Cf,Pf(k))); end
+%Pe = zeros(size(Pf));
+%for k = 1:length(Pf), [Pe(k),~] = find(ismember(Mesh.Cf,Pf(k))); end
+[Pe,~] = find(ismember(Mesh.Cf,Pf));
 Mesh1.Nsd = Mesh.Nsd(Pe);
 %Mesh1.Nsd = Mesh.NsdF(Pf);
 
