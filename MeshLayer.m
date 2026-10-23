@@ -186,7 +186,7 @@ if isstruct(varargin{1,1})
 
         else
             if ~isempty(Geom) && isfield(Geom,'xv') && isfield(Geom,'yv')
-                if npz == 2, npz = 3; end
+                if npz == 1, npz = 2; elseif npz == 2, npz = 3; end
                 Mesh = MeshLayer(a1,[],a2,[],Geom.hc,npx,npy,npz,...
                         Geom.xv,Geom.yv,Geom.NumSD);
             else
@@ -201,9 +201,11 @@ else
 end
 %
 [a1,l1] = deal(varargin{1,1},varargin{1,2});
-if size(varargin,2) == 5
+if size(varargin,2) <= 7
     [h,npx,npy] = deal(varargin{1,3},varargin{1,4},varargin{1,5});
-    Mesh = MeshLayer2D(a1,l1,h,npx,npy);
+    if size(varargin,2) >= 6, xg = varargin{1,6}; else, xg = []; end 
+    if size(varargin,2) == 7, yg = varargin{1,7}; else, yg = []; end       
+    Mesh = MeshLayer2D(a1,l1,h,npx,npy,xg,yg);
 else
     [a2,l2] = deal(varargin{1,3},varargin{1,4});
     [h,npx,npy,npz] = deal(varargin{1,5},varargin{1,6},varargin{1,7},varargin{1,8});
@@ -270,11 +272,14 @@ end
 
 
 %%
-function Mesh = MeshLayer2D(a1,l1,h,npx,npy)
+function Mesh = MeshLayer2D(a1,l1,h,npx,npy,xg,yg)
 
 % MeshLayer2D 
 %   Generate a 2D mesh in quadrangles
 
+if ~isempty(xg)
+    x0 = xg;
+else
 %
 if nargin < 4, npx = 2; npy = 2; end
 %
@@ -293,7 +298,7 @@ end
 
 % Valeur npx si plusieurs inclusions
 if l1 == 0, l1 = []; end
-if length(npx) == 1
+if isscalar(npx)
 if npx > 3
     dx = min([l1(:);a1-sum(l1)])/(npx);
     if ~isempty(l1), npx = ceil([a1/2-sum(l1)/2; l1(:); a1/2-sum(l1)/2]/dx); end
@@ -315,8 +320,14 @@ else
     x0 = [x0, linspace2(util(xi),util(a1),npx(end),1)]; 
 end
 x0 = x0-a1/2;
+end
 %
-y0 = linspace(0,h,npy);
+if ~isempty(yg)
+    y0 = yg;
+else
+    y0 = linspace(0,h,npy);
+    y0 = y0-h/2;
+end
 
 % Maillage
 
@@ -419,7 +430,7 @@ else
         x0 = [x0, linspace2(util(xi),util(a1/2),npx(end),1)];
     end
 end
-x0 = unique2(util(sort([x0, min(xv,[],2)', max(xv,[],2)'])),1e-10);
+x0 = unique2(util(sort([x0, double(min(xv,[],2)'), double(max(xv,[],2)')])),1e-10);
 x0 = x0(abs(x0)<=a1/2+eps);
 
 %x0 = x0-a1/2;
@@ -448,7 +459,7 @@ else
         y0 = [y0, linspace2(util(yi),util(a2/2),npy(end),1)];
     end
 end
-y0 = unique2(util(sort([y0, min(yv,[],2)', max(yv,[],2)'])),1e-10);
+y0 = unique2(util(sort([y0, double(min(yv,[],2)'), double(max(yv,[],2)')])),1e-10);
 y0 = y0(abs(y0)<=a2/2+eps);
 %y0 = y0-a2/2;
 
@@ -460,9 +471,14 @@ end
 if isscalar(npz)
     z0 = linspace(0,h,npz);
 else
+    zm = unique([0 npz(2:end) h]);
     h = max([h,npz(2:end)]);
     z0 = [linspace(0,h,npz(1)) npz(2:end)];
     z0 = unique2(util(z0),1e-4);
+    for k = 1:length(zm)-1
+        P = find(z0>=zm(k)-eps & z0<=zm(k+1)+eps);
+        z0(P) = linspace(zm(k),zm(k+1),length(P));
+    end
 end
 
 % Maillage
