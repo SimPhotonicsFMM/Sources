@@ -24,7 +24,11 @@ Nz = length(z);
 %Mesh(Nz) = struct([]);
 for k = 1:Nz-1
     Pe = find(Mesh0.CoorV(:,3)>z(k)+2*eps & Mesh0.CoorV(:,3)<=z(k+1)+2*eps);
-    Mesh1(k) = ExtractMesh(utilMesh(Mesh0),Pe);
+    try
+        Mesh1(k) = ExtractMesh(utilMesh(Mesh0),Pe);
+    catch
+        Mesh1(k) = ExtractMesh(utilMesh2(Mesh0),Pe);
+    end
 end
 
 for k = 1:length(Mesh1), Mesh1(k).xv = [];  Mesh1(k).zv = []; end
@@ -66,8 +70,12 @@ for k = 1:length(Mesh1)
     Mesh(k) = NumFacet(utilMesh(Mesh(k)));
 end
 
-% Concatenate adjacent films
-%[Mesh,index] = OptimFreeForm(Mesh,index);
-% Simplify mesh
-%Mesh = SimplifyMesh(Mesh);
+if Flag == 1
+    % Concatenate adjacent films
+    [Mesh,index] = OptimFreeForm(Mesh,index);
+    % Simplify mesh
+    Mesh = SimplifyMesh(Mesh);
+    %
+end
+%
 end
